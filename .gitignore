@@ -1,0 +1,122 @@
+# ============================
+# macOS
+# ============================
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ============================
+# Xcode / iOS
+# ============================
+build/
+DerivedData/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.playground
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager
+.build/
+Packages/
+Package.pins
+Package.resolved
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+
+# CocoaPods
+Pods/
+*.xcworkspace
+
+# Carthage
+Carthage/Build/
+Carthage/Checkouts/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# ============================
+# Android / Kotlin
+# ============================
+*.iml
+.gradle/
+/local.properties
+/.idea/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+/bin/
+/gen/
+/out/
+/build/
+/captures
+.externalNativeBuild/
+.cxx/
+android/app/build/
+android/build/
+android/.gradle/
+
+# Google Services (DO NOT COMMIT)
+google-services.json
+
+# ============================
+# Environment / Secrets
+# ============================
+.env
+.env.local
+.env.*.local
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+GoogleService-Info.plist
+GoogleService-Info-dev.plist
+GoogleService-Info-prod.plist
+ServiceAccount.json
+
+# ============================
+# IDE
+# ============================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ============================
+# OS
+# ============================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ============================
+# Dependencies
+# ============================
+node_modules/
+
+# ============================
+# Coverage & Tests
+# ============================
+coverage/
+test-results/
+*.xcresult
