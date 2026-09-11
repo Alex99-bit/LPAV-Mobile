@@ -1,103 +1,104 @@
 package com.lpav.market.ui.chat
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.lpav.market.ui.theme.PrimaryBlue
 import com.lpav.market.core.model.ChatMessage
+import com.lpav.market.ui.theme.Emerald50
+import com.lpav.market.ui.theme.Emerald500
+import com.lpav.market.ui.theme.Slate100
+import com.lpav.market.ui.theme.Slate800
 
 @Composable
 fun MessageBubble(
     message: ChatMessage,
     isCurrentUser: Boolean
 ) {
-    Row(
+    val alignment = if (isCurrentUser) Alignment.End else Alignment.Start
+    val bubbleColor = if (isCurrentUser) Emerald500 else MaterialTheme.colorScheme.surfaceVariant
+    val contentColor = if (isCurrentUser) androidx.compose.ui.graphics.Color.White
+    else MaterialTheme.colorScheme.onSurfaceVariant
+    val bubbleShape = if (isCurrentUser) {
+        MaterialTheme.shapes.large.copy(
+            bottomEnd = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
+        )
+    } else {
+        MaterialTheme.shapes.large.copy(
+            bottomStart = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
+        )
+    }
+
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isCurrentUser) Arrangement.End else Arrangement.Start
+        horizontalAlignment = alignment
     ) {
-        if (!isCurrentUser) {
-            Box(
+        if (message.isSystem || message.isAiGenerated) {
+            Surface(
                 modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                color = Emerald50
             ) {
                 Text(
-                    message.senderName.take(1).uppercase(),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
+                    text = message.messageText,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontStyle = FontStyle.Italic,
+                    color = Emerald500,
+                    modifier = Modifier.padding(12.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
-        }
-
-        Surface(
-            shape = RoundedCornerShape(
-                topStart = if (isCurrentUser) 16.dp else 4.dp,
-                topEnd = if (isCurrentUser) 4.dp else 16.dp,
-                bottomStart = 16.dp,
-                bottomEnd = 16.dp
-            ),
-            color = if (isCurrentUser) PrimaryBlue else MaterialTheme.colorScheme.surfaceVariant
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                if (!isCurrentUser && message.senderName.isNotEmpty()) {
-                    Text(
-                        message.senderName,
-                        fontSize = 11.sp,
-                        color = if (isCurrentUser) Color.White.copy(alpha = 0.8f)
-                        else MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                }
+        } else {
+            Surface(
+                shape = bubbleShape,
+                color = bubbleColor,
+                shadowElevation = 1.dp
+            ) {
                 Text(
-                    message.content,
-                    color = if (isCurrentUser) Color.White
-                    else MaterialTheme.colorScheme.onSurface,
+                    text = message.messageText,
+                    modifier = Modifier
+                        .padding(12.dp)
+                        .widthIn(max = 280.dp),
+                    color = contentColor,
                     style = MaterialTheme.typography.bodyMedium
                 )
-                Text(
-                    message.createdAt.take(16).replace("T", " "),
-                    fontSize = 9.sp,
-                    color = if (isCurrentUser) Color.White.copy(alpha = 0.5f)
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp),
-                    textAlign = if (isCurrentUser) androidx.compose.ui.text.style.TextAlign.End
-                    else androidx.compose.ui.text.style.TextAlign.Start
-                )
             }
         }
 
-        if (isCurrentUser) {
-            Spacer(modifier = Modifier.width(8.dp))
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(PrimaryBlue),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    "Tú",
-                    fontSize = 10.sp,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
+        if (message.createdAt != null) {
+            Text(
+                text = formatChatTime(message.createdAt),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.padding(
+                    start = if (isCurrentUser) 0.dp else 12.dp,
+                    end = if (isCurrentUser) 12.dp else 0.dp,
+                    top = 2.dp
                 )
-            }
+            )
         }
+    }
+}
+
+private fun formatChatTime(isoTimestamp: String?): String {
+    if (isoTimestamp == null) return ""
+    return try {
+        val instant = java.time.Instant.parse(isoTimestamp)
+        val localTime = java.time.LocalDateTime.ofInstant(instant, java.time.ZoneId.systemDefault())
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+        localTime.format(formatter)
+    } catch (e: Exception) {
+        ""
     }
 }

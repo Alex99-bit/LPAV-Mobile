@@ -1,172 +1,127 @@
 package com.lpav.market.ui.home
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.lpav.market.ui.theme.PrimaryBlue
-import com.lpav.market.ui.theme.SecondaryGold
+import com.lpav.market.core.util.formatCurrency
 import com.lpav.market.core.model.TravelPackage
+import com.lpav.market.ui.components.AsyncImage
+import com.lpav.market.ui.components.LpavCard
 
 @Composable
 fun PackageCard(
-    travelPackage: TravelPackage,
-    onClick: () -> Unit
+    pkg: TravelPackage,
+    isInWishlist: Boolean,
+    onClick: () -> Unit,
+    onToggleWishlist: () -> Unit,
+    onToggleCart: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    LpavCard(
+        modifier = modifier,
+        onClick = onClick
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp)
+                    .aspectRatio(3f / 4f)
             ) {
-                if (travelPackage.images.isNotEmpty()) {
-                    coil.compose.AsyncImage(
-                        model = travelPackage.images.first(),
-                        contentDescription = travelPackage.title,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                AsyncImage(
+                    imageUrl = pkg.urlFlyerStorage ?: pkg.urlThumbnailStorage,
+                    contentDescription = pkg.title,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(3f / 4f)
+                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 0.dp, bottomEnd = 0.dp))
+                )
+
+                IconButton(
+                    onClick = onToggleWishlist,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                        .size(32.dp),
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = Color.White.copy(alpha = 0.8f)
                     )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Image,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                ) {
+                    Icon(
+                        imageVector = if (isInWishlist) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = "Favorito",
+                        tint = if (isInWishlist) Color(0xFFDC2626) else Color.Gray,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
-                if (travelPackage.featured) {
-                    Surface(
-                        modifier = Modifier.padding(8.dp),
-                        color = SecondaryGold,
-                        shape = MaterialTheme.shapes.small
-                    ) {
-                        Text(
-                            "Destacado",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
+
+                IconButton(
+                    onClick = onToggleCart,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(4.dp)
+                        .size(32.dp),
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = Color.White.copy(alpha = 0.8f)
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.ShoppingCart,
+                        contentDescription = "Agregar al carrito",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
 
-            Column(modifier = Modifier.padding(12.dp)) {
+            Column(
+                modifier = Modifier.padding(10.dp)
+            ) {
                 Text(
-                    text = travelPackage.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    text = pkg.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = pkg.region,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-
                 Spacer(modifier = Modifier.height(4.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.LocationOn,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "${travelPackage.destination}, ${travelPackage.country}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        if (travelPackage.discountPercent > 0) {
-                            val discountedPrice = travelPackage.basePrice * (1 - travelPackage.discountPercent / 100)
-                            Text(
-                                text = "$${String.format("%.2f", travelPackage.basePrice)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
-                            )
-                            Text(
-                                text = "$${String.format("%.2f", discountedPrice)}",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = PrimaryBlue
-                            )
-                        } else {
-                            Text(
-                                text = "$${String.format("%.2f", travelPackage.basePrice)}",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = PrimaryBlue
-                            )
-                        }
-                    }
-
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = MaterialTheme.shapes.small
-                    ) {
-                        Text(
-                            text = "${travelPackage.durationDays}D/${travelPackage.durationNights}N",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-
-                if (travelPackage.ratingAvg > 0) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Star,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = SecondaryGold
-                        )
-                        Text(
-                            text = "${String.format("%.1f", travelPackage.ratingAvg)} (${travelPackage.ratingCount})",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 4.dp)
-                        )
-                    }
-                }
+                Text(
+                    text = pkg.price.formatCurrency(pkg.currency),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }

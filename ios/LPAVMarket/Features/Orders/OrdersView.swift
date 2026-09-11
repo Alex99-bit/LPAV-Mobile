@@ -1,177 +1,115 @@
 import SwiftUI
 
 struct OrdersView: View {
-    @State private var viewModel = OrdersViewModel()
-    @State private var expandedOrderId: String?
+    @Environment(AuthManager.self) private var authManager
+    @State private var orders: [TransactionOrder] = []
+    @State private var isLoading = true
+    @State private var selectedSegment = "all"
+
+    private let segments = ["all", "pending", "completed", "refunded"]
+
+    var filteredOrders: [TransactionOrder] {
+        if selectedSegment == "all" { return orders }
+        if selectedSegment == "refunded" {
+            return orders.filter { $0.paymentStatus == "refunded" || $0.paymentStatus == "partial" }
+        }
+        return orders.filter { $0.paymentStatus == selectedSegment }
+    }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if viewModel.isLoading && viewModel.orders.isEmpty {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let error = viewModel.errorMessage, viewModel.orders.isEmpty {
-                    ErrorView(message: error) {
-                        Task { await viewModel.loadOrders() }
-                    }
-                } else if viewModel.orders.isEmpty {
-                    EmptyStateView(
-                        icon: "bag",
-                        title: "No orders yet",
-                        message: "Your orders will appear here"
-                    )
-                } else {
-                    ordersList
+        Group {
+            if isLoading {
+                LPAVLoadingView(message: "Loading orders...")
+            } else if orders.isEmpty {
+                LPAVEmptyState(
+                    icon: "shippingbox",
+                    title: "No Orders Yet",
+                    message: "Your completed bookings will appear here",
+                    actionTitle: "Browse Packages"
+                ) {
+                    NotificationCenter.default.post(name: .navigateToPackage, object: nil)
                 }
+            } else {
+                VStack(spacing: 0) {
+                    Picker("Filter", selection: $selectedSegment) {
+                        ForEach(segments, id: \.self) { segment in
+                            Text(segment.capitalized).tag(segment)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding()
+
+                    List {
+                        ForEach(filteredOrders) { order in
+                            OrderRow(order: order)
+                        }
+                    }
+                    .listStyle(.plain)
+                }
+                .background(Color.lpavBackground)
             }
-            .navigationTitle("My Orders")
-            .refreshable {
-                await viewModel.loadOrders()
-            }
-            .task {
-                await viewModel.loadOrders()
-            }
+        }
+        .navigationTitle("Orders")
+        .task {
+            await loadOrders()
         }
     }
 
-    private var ordersList: some View {
-        ScrollView {
-            LazyVStack(spacing: 12) {
-                ForEach(viewModel.orders) { order in
-                    OrderCardView(
-                        order: order,
-                        isExpanded: expandedOrderId == order.id,
-                        onToggle: {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                expandedOrderId = expandedOrderId == order.id ? nil : order.id
-                            }
-                        }
-                    )
-                }
-            }
-            .padding(16)
+    private func loadOrders() async {
+        guard let userId = authManager.currentUser?.profile.id else { return }
+        isLoading = true
+        do {
+            orders = try await APIRouter.Orders.fetchUserOrders(userId: userId)
+        } catch {
+            print("Failed to load orders: \(error)")
         }
+        isLoading = false
     }
 }
 
-struct OrderCardView: View {
+struct OrderRow: View {
     let order: TransactionOrder
-    let isExpanded: Bool
-    let onToggle: () -> Void
-
-    @State private var installments: [InstallmentSchedule] = []
-    @State private var isLoadingInstallments = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(order.packageTitle ?? "Package")
-                        .font(.subheadline.bold())
-                        .foregroundStyle(brandText)
+                StatusBadge(status: order.statusDisplay)
+                Spacer()
+                Text(order.createdAt?.toDateFromISO()?.timeAgo ?? "")
+                    .font(.caption)
+                    .foregroundColor(.lpavSecondaryText)
+            }
 
-                    Text(order.formattedTotal)
-                        .font(.headline)
-                        .foregroundStyle(brandPrimary)
+            HStack {
+                VStack(alignment: .leading) {
+                    Text("Order #\(order.orderId.prefix(8))")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.lpavText)
                 }
 
                 Spacer()
 
-                BadgeView(
-                    text: order.paymentStatus.displayName,
-                    color: statusColor(for: order.paymentStatus)
-                )
+                Text(order.totalAmount.formattedCurrency(order.currency))
+                    .font(.headline)
+                    .foregroundColor(.primaryGreen)
             }
 
-            HStack(spacing: 16) {
-                if order.depositAmountMxn > 0 {
-                    Label(order.formattedDeposit, systemImage: "banknote")
+            if let remaining = order.remainingBalance, remaining > 0 {
+                HStack {
+                    Image(systemName: "exclamationmark.circle")
                         .font(.caption)
-                        .foregroundStyle(brandSubtext)
-                }
-
-                if order.pointsUsed > 0 {
-                    Label("\(order.pointsUsed) pts", systemImage: "star")
+                        .foregroundColor(.orange)
+                    Text("Remaining: \(remaining.formattedCurrency(order.currency))")
                         .font(.caption)
-                        .foregroundStyle(brandAccent)
+                        .foregroundColor(.orange)
                 }
-
-                Label(formatDate(order.createdAt), systemImage: "calendar")
-                    .font(.caption)
-                    .foregroundStyle(brandSubtext)
             }
 
-            if order.installmentPlan {
-                Button {
-                    onToggle()
-                    if installments.isEmpty {
-                        Task {
-                            isLoadingInstallments = true
-                            installments = await OrdersViewModel().installments(for: order.id)
-                            isLoadingInstallments = false
-                        }
-                    }
-                } label: {
-                    HStack {
-                        Text(isExpanded ? "Hide Installments" : "View Installments")
-                            .font(.caption.bold())
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                    }
-                    .foregroundStyle(brandPrimary)
-                }
-
-                if isExpanded {
-                    Divider()
-                    if isLoadingInstallments {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                    } else {
-                        ForEach(installments) { installment in
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(installment.installmentText)
-                                        .font(.caption.bold())
-                                        .foregroundStyle(brandText)
-                                    Text(installment.formattedDueDate)
-                                        .font(.caption2)
-                                        .foregroundStyle(brandSubtext)
-                                }
-                                Spacer()
-                                Text(installment.formattedAmount)
-                                    .font(.caption)
-                                    .foregroundStyle(brandText)
-                                BadgeView(
-                                    text: installment.paymentStatus.displayName,
-                                    color: statusColor(for: installment.paymentStatus)
-                                )
-                            }
-                        }
-                    }
-                }
+            if let points = order.pointsRedeemed, points > 0 {
+                LPAVBadge(text: "\(points) pts redeemed", color: .primaryGreen)
             }
         }
-        .padding(16)
-        .background(Color.brandCard)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(brandBorder, lineWidth: 1)
-        )
-    }
-
-    private func statusColor(for status: PaymentStatus) -> Color {
-        switch status {
-        case .pending: return .statusPending
-        case .completed: return .statusCompleted
-        case .failed: return .statusFailed
-        case .partial: return .statusPartial
-        case .refunded: return .brandPrimary
-        }
-    }
-
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return formatter.string(from: date)
+        .padding(.vertical, 8)
     }
 }

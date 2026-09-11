@@ -1,37 +1,93 @@
 import Foundation
 
 struct AgencyTenant: Codable, Identifiable, Sendable {
-    let id: String
+    let tenantId: String
     let name: String
-    let slug: String
-    let description: String?
+    let slug: String?
     let logoUrl: String?
-    let coverImageUrl: String?
-    let phone: String?
-    let email: String?
+    let coverUrl: String?
+    let description: String?
     let website: String?
-    let isVerified: Bool
-    let rating: Double?
-    let reviewCount: Int
-    let packageCount: Int
-    let planType: PlanType
-    let createdAt: Date
+    let contactEmail: String?
+    let contactPhone: String?
+    let address: String?
+    let city: String?
+    let country: String?
+    let subscriptionTier: String?
+    let subscriptionStatus: String?
+    let saasActive: Bool?
+    let verified: Bool?
+    let regions: [String]?
+    let socialLinks: [String: String]?
+    let createdAt: String?
+    let updatedAt: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, slug, description
+        case tenantId = "tenant_id"
+        case name
+        case slug
         case logoUrl = "logo_url"
-        case coverImageUrl = "cover_image_url"
-        case phone, email, website
-        case isVerified = "is_verified"
-        case rating
-        case reviewCount = "review_count"
-        case packageCount = "package_count"
-        case planType = "plan_type"
+        case coverUrl = "cover_url"
+        case description
+        case website
+        case contactEmail = "contact_email"
+        case contactPhone = "contact_phone"
+        case address
+        case city
+        case country
+        case subscriptionTier = "subscription_tier"
+        case subscriptionStatus = "subscription_status"
+        case saasActive = "saas_active"
+        case verified
+        case regions
+        case socialLinks = "social_links"
         case createdAt = "created_at"
+        case updatedAt = "updated_at"
     }
 
-    var formattedRating: String {
-        guard let rating = rating else { return "New" }
-        return String(format: "%.1f", rating)
+    var id: String { tenantId }
+
+    init(
+        tenantId: String,
+        name: String,
+        slug: String? = nil,
+        logoUrl: String? = nil,
+        coverUrl: String? = nil,
+        description: String? = nil,
+        website: String? = nil,
+        contactEmail: String? = nil,
+        contactPhone: String? = nil,
+        address: String? = nil,
+        city: String? = nil,
+        country: String? = nil,
+        subscriptionTier: String? = nil,
+        subscriptionStatus: String? = nil,
+        saasActive: Bool? = nil,
+        verified: Bool? = nil,
+        regions: [String]? = nil,
+        socialLinks: [String: String]? = nil,
+        createdAt: String? = nil,
+        updatedAt: String? = nil
+    ) {
+        self.tenantId = tenantId
+        self.name = name
+        self.slug = slug
+        self.logoUrl = logoUrl
+        self.coverUrl = coverUrl
+        self.description = description
+        self.website = website
+        self.contactEmail = contactEmail
+        self.contactPhone = contactPhone
+        self.address = address
+        self.city = city
+        self.country = country
+        self.subscriptionTier = subscriptionTier
+        self.subscriptionStatus = subscriptionStatus
+        self.saasActive = saasActive
+        self.verified = verified
+        self.regions = regions
+        self.socialLinks = socialLinks
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
     }
 }

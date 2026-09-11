@@ -1,244 +1,339 @@
 import SwiftUI
-import StripePayments
+import PassKit
 
 struct CheckoutView: View {
-    let items: [CartItem]
-    @State private var viewModel = CheckoutViewModel()
+    @Environment(CheckoutViewModel.self) private var vm
     @Environment(AuthManager.self) private var authManager
-    @Environment(\.dismiss) private var dismiss
+    @State private var showStripeSheet = false
+    @State private var showSuccess = false
+    @State private var travelerName = ""
+    @State private var travelerEmail = ""
+    @State private var specialRequests = ""
+    @State private var guestCount = 1
+    @State private var usePoints = false
+    @State private var pointsToUse: Double = 0
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+                travelerInfoSection
+
+                if let wallet = vm.wallet, wallet.pointsBalance > 0 {
+                    pointsSection
+                }
+
                 orderSummary
-                ivaBreakdown
-                depositSection
-                pointsSection
-                totalSection
-                paymentButton
+                paymentSection
             }
-            .padding(16)
+            .padding()
         }
+        .background(Color.lpavBackground)
         .navigationTitle("Checkout")
-        .navigationBarTitleDisplayMode(.inline)
-        .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
-            Button("OK") { viewModel.errorMessage = nil }
-        } message: {
-            Text(viewModel.errorMessage ?? "")
-        }
-        .alert("Payment Successful!", isPresented: $viewModel.paymentSuccess) {
-            Button("View Orders") {
-                dismiss()
+        .sheet(isPresented: $showStripeSheet) {
+            if let url = vm.stripeURL {
+                StripeCheckoutView(url: url) { success in
+                    showStripeSheet = false
+                    if success {
+                        Task {
+                            _ = await vm.completeOrder()
+                            showSuccess = true
+                        }
+                    }
+                }
             }
+        }
+        .alert("Order Complete", isPresented: $showSuccess) {
+            Button("View Orders") {}
+            Button("Continue Shopping", role: .cancel) {}
         } message: {
-            Text("Your order has been placed successfully.")
+            Text("Your order has been placed successfully!")
         }
         .task {
-            viewModel.subtotal = items.reduce(0) { $0 + $1.totalPrice }
-            await viewModel.loadWallet()
+            travelerName = authManager.currentUser?.profile.fullName ?? ""
+            travelerEmail = authManager.currentUser?.profile.email ?? ""
+        }
+    }
+
+    private var travelerInfoSection: some View {
+        LPAVCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Traveler Information")
+                    .font(.headline)
+                    .foregroundColor(.lpavText)
+
+                LPAVTextField(
+                    title: "Name",
+                    text: $travelerName,
+                    placeholder: "Full name as on ID",
+                    icon: "person"
+                )
+
+                LPAVTextField(
+                    title: "Email",
+                    text: $travelerEmail,
+                    placeholder: "you@example.com",
+                    icon: "envelope",
+                    keyboardType: .emailAddress
+                )
+
+                HStack {
+                    Text("Guests")
+                        .font(.subheadline)
+                        .foregroundColor(.lpavSecondaryText)
+                    Spacer()
+                    Stepper("\(guestCount)", value: $guestCount, in: 1...20)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Special Requests (optional)")
+                        .font(.subheadline)
+                        .foregroundColor(.lpavSecondaryText)
+                    TextEditor(text: $specialRequests)
+                        .frame(height: 80)
+                        .padding(8)
+                        .background(Color.lpavSurface)
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(.systemGray5), lineWidth: 1)
+                        )
+                }
+            }
+        }
+    }
+
+    private var pointsSection: some View {
+        LPAVCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Toggle(isOn: $usePoints) {
+                    HStack {
+                        Image(systemName: "star.fill")
+                            .foregroundColor(.primaryGreen)
+                        Text("Redeem Points")
+                            .fontWeight(.medium)
+                            .foregroundColor(.lpavText)
+                    }
+                }
+                .tint(.primaryGreen)
+
+                if usePoints, let wallet = vm.wallet {
+                    VStack(spacing: 8) {
+                        HStack {
+                            Text("0 pts")
+                                .font(.caption)
+                                .foregroundColor(.lpavSecondaryText)
+                            Spacer()
+                            Text("\(vm.maxRedeemablePoints) pts max")
+                                .font(.caption)
+                                .foregroundColor(.lpavSecondaryText)
+                        }
+
+                        Slider(value: $pointsToUse, in: 0...Double(vm.maxRedeemablePoints), step: 100)
+                            .tint(.primaryGreen)
+
+                        HStack {
+                            Text("You will redeem:")
+                                .font(.caption)
+                                .foregroundColor(.lpavSecondaryText)
+                            Spacer()
+                            Text("\(Int(pointsToUse)) pts = \(Double(Int(pointsToUse)) * 0.01, format: .currency(code: vm.currency))")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.primaryGreen)
+                        }
+                    }
+                    .onChange(of: pointsToUse) { _, newValue in
+                        vm.applyPoints(Int(newValue))
+                    }
+                }
+            }
         }
     }
 
     private var orderSummary: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Order Summary")
-                .font(.headline)
-                .foregroundStyle(brandText)
-
-            ForEach(items) { item in
+        LPAVCard {
+            VStack(spacing: 10) {
                 HStack {
-                    Text(item.packageTitle)
-                        .font(.subheadline)
-                        .foregroundStyle(brandText)
-                        .lineLimit(1)
+                    Text("Subtotal")
                     Spacer()
-                    Text(item.formattedPrice)
-                        .font(.subheadline)
-                        .foregroundStyle(brandText)
+                    Text(vm.subtotal.formattedCurrency(vm.currency))
                 }
-            }
-        }
-        .padding(16)
-        .background(Color.brandCard)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(brandBorder, lineWidth: 1)
-        )
-    }
-
-    private var ivaBreakdown: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Text("Subtotal")
-                    .font(.subheadline)
-                    .foregroundStyle(brandSubtext)
-                Spacer()
-                Text(viewModel.formattedSubtotal)
-                    .font(.subheadline)
-                    .foregroundStyle(brandText)
-            }
-
-            HStack {
-                Text("IVA (16%)")
-                    .font(.subheadline)
-                    .foregroundStyle(brandSubtext)
-                Spacer()
-                Text(viewModel.formattedIva)
-                    .font(.subheadline)
-                    .foregroundStyle(brandText)
-            }
-
-            Divider()
-
-            HStack {
-                Text("Total")
-                    .font(.headline)
-                    .foregroundStyle(brandText)
-                Spacer()
-                Text(viewModel.formattedTotal)
-                    .font(.headline)
-                    .foregroundStyle(brandText)
-            }
-        }
-        .padding(16)
-        .background(Color.brandCard)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(brandBorder, lineWidth: 1)
-        )
-    }
-
-    private var depositSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "info.circle")
-                    .foregroundStyle(brandPrimary)
-                Text("30% deposit required")
-                    .font(.subheadline)
-                    .foregroundStyle(brandText)
-            }
-            Text("Deposit to pay now: \(viewModel.formattedDeposit)")
-                .font(.subheadline.bold())
-                .foregroundStyle(brandPrimary)
-        }
-        .padding(16)
-        .background(brandPrimary.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    private var pointsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Redeem Points")
-                    .font(.headline)
-                    .foregroundStyle(brandText)
-                Spacer()
-                Text("\(viewModel.walletBalance) pts available")
-                    .font(.caption)
-                    .foregroundStyle(brandSubtext)
-            }
-
-            if viewModel.walletBalance > 0 {
-                Slider(
-                    value: Binding(
-                        get: { Double(viewModel.pointsToRedeem) },
-                        set: { viewModel.pointsToRedeem = Int($0) }
-                    ),
-                    in: 0...Double(viewModel.walletBalance),
-                    step: 100
-                )
-                .tint(brandPrimary)
-
                 HStack {
-                    Text("0")
-                        .font(.caption)
-                        .foregroundStyle(brandSubtext)
+                    Text("Platform Fee (5%)")
                     Spacer()
-                    Text("\(viewModel.pointsToRedeem) pts")
-                        .font(.subheadline.bold())
-                        .foregroundStyle(brandPrimary)
-                    Spacer()
-                    Text("\(viewModel.walletBalance)")
-                        .font(.caption)
-                        .foregroundStyle(brandSubtext)
+                    Text(vm.platformFee.formattedCurrency(vm.currency))
                 }
-
-                if viewModel.pointsToRedeem > 0 {
+                if vm.pointsDiscount > 0 {
                     HStack {
-                        Text("Points value:")
-                            .font(.caption)
-                            .foregroundStyle(brandSubtext)
-                        Text("-$\(Int(viewModel.pointsValueMxn).formatted()) MXN")
-                            .font(.caption.bold())
-                            .foregroundStyle(brandSuccess)
+                        Text("Points Discount")
+                            .foregroundColor(.primaryGreen)
+                        Spacer()
+                        Text("-\(vm.pointsDiscount.formattedCurrency(vm.currency))")
+                            .foregroundColor(.primaryGreen)
                     }
                 }
-            } else {
-                Text("No points available to redeem")
-                    .font(.subheadline)
-                    .foregroundStyle(brandSubtext)
+                Divider()
+                HStack {
+                    Text("Total")
+                        .fontWeight(.bold)
+                    Spacer()
+                    Text(vm.total.formattedCurrency(vm.currency))
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primaryGreen)
+                }
             }
+            .font(.subheadline)
+            .foregroundColor(.lpavSecondaryText)
+            .padding(8)
         }
-        .padding(16)
-        .background(Color.brandCard)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(brandBorder, lineWidth: 1)
-        )
     }
 
-    private var totalSection: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Total to Pay")
-                    .font(.headline)
-                    .foregroundStyle(brandText)
-                Text("(30% deposit)")
+    private var paymentSection: some View {
+        VStack(spacing: 12) {
+            LPAVButton(
+                title: "Pay with Card (Stripe)",
+                icon: "creditcard.fill",
+                isLoading: vm.isProcessingPayment
+            ) {
+                Task { await vm.createCheckout() }
+            }
+            .onChange(of: vm.stripeURL) { _, newURL in
+                if newURL != nil {
+                    showStripeSheet = true
+                }
+            }
+
+            if PKPaymentAuthorizationController.canMakePayments() {
+                ApplePayButton(amount: vm.total, currency: vm.currency) { success in
+                    if success {
+                        Task {
+                            _ = await vm.completeOrder()
+                            showSuccess = true
+                        }
+                    }
+                }
+            }
+
+            if let error = vm.errorMessage {
+                Text(error)
                     .font(.caption)
-                    .foregroundStyle(brandSubtext)
+                    .foregroundColor(.red)
+                    .padding(.top, 4)
             }
-            Spacer()
-            Text(viewModel.formattedToPay)
-                .font(.title2.bold())
-                .foregroundStyle(brandPrimary)
         }
-        .padding(16)
-        .background(brandPrimary.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+struct ApplePayButton: View {
+    let amount: Double
+    let currency: String
+    let onCompletion: (Bool) -> Void
+
+    var body: some View {
+        Button {
+            presentApplePay()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "apple.logo")
+                Text("Pay")
+            }
+            .fontWeight(.semibold)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(Color.black)
+            .foregroundColor(.white)
+            .cornerRadius(12)
+        }
     }
 
-    private var paymentButton: some View {
-        Button {
-            Task { await viewModel.processPayment(items: items) }
-        } label: {
-            if viewModel.isProcessingPayment {
-                HStack {
-                    ProgressView()
-                        .tint(.white)
-                    Text("Processing...")
-                }
-                .font(.headline)
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(brandPrimary)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            } else {
-                HStack {
-                    Image(systemName: "creditcard.fill")
-                    Text("Pay with Stripe")
-                }
-                .font(.headline)
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(brandPrimary)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
+    private func presentApplePay() {
+        let request = PKPaymentRequest()
+        request.merchantIdentifier = "merchant.com.lpavmarket"
+        request.supportedNetworks = [.visa, .masterCard, .amex]
+        request.merchantCapabilities = .threeDSecure
+        request.countryCode = "MX"
+        request.currencyCode = currency
+        request.paymentSummaryItems = [
+            PKPaymentSummaryItem(label: "LPAV Market Booking", amount: NSDecimalNumber(value: amount))
+        ]
+
+        guard let controller = PKPaymentAuthorizationController(paymentRequest: request) else {
+            onCompletion(false)
+            return
         }
-        .disabled(viewModel.isProcessingPayment)
+
+        let delegate = ApplePayDelegate(onCompletion: onCompletion)
+        controller.delegate = delegate
+        controller.present()
+        self.applePayDelegateStorage = delegate
+    }
+
+    @State private var applePayDelegateStorage: ApplePayDelegate?
+
+    final class ApplePayDelegate: NSObject, PKPaymentAuthorizationControllerDelegate {
+        let onCompletion: (Bool) -> Void
+
+        init(onCompletion: @escaping (Bool) -> Void) {
+            self.onCompletion = onCompletion
+        }
+
+        func paymentAuthorizationControllerDidFinish(_ controller: PKPaymentAuthorizationController) {
+            controller.dismiss()
+        }
+
+        func paymentAuthorizationController(
+            _ controller: PKPaymentAuthorizationController,
+            didAuthorizePayment payment: PKPayment,
+            completion: @escaping (PKPaymentAuthorizationResult) -> Void
+        ) {
+            completion(PKPaymentAuthorizationResult(status: .success, errors: nil))
+            onCompletion(true)
+        }
+
+        nonisolated func paymentAuthorizationController(
+            _ controller: PKPaymentAuthorizationController,
+            didAuthorizePayment payment: PKPayment,
+            handler: @escaping (PKPaymentAuthorizationResult) -> Void
+        ) {
+            handler(PKPaymentAuthorizationResult(status: .success, errors: nil))
+            DispatchQueue.main.async { self.onCompletion(true) }
+        }
+    }
+}
+
+struct StripeCheckoutView: UIViewControllerRepresentable {
+    let url: URL
+    let onCompletion: (Bool) -> Void
+
+    func makeUIViewController(context: Context) -> StripeCheckoutViewController {
+        StripeCheckoutViewController(url: url, onCompletion: onCompletion)
+    }
+
+    func updateUIViewController(_ uiViewController: StripeCheckoutViewController, context: Context) {}
+}
+
+final class StripeCheckoutViewController: UIViewController {
+    let url: URL
+    let onCompletion: (Bool) -> Void
+    private var observations: [NSKeyValueObservation] = []
+
+    init(url: URL, onCompletion: @escaping (Bool) -> Void) {
+        self.url = url
+        self.onCompletion = onCompletion
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        UIApplication.shared.open(url)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.dismiss(animated: true)
+            self?.onCompletion(true)
+        }
     }
 }

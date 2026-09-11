@@ -1,32 +1,49 @@
 import Foundation
 
 struct PackageReview: Codable, Identifiable, Sendable {
-    let id: String
+    let reviewId: String
     let packageId: String
     let userId: String
-    let userName: String?
-    let userAvatarUrl: String?
     let rating: Int
     let comment: String?
-    let createdAt: Date
+    let userName: String?
+    let userAvatarUrl: String?
+    let createdAt: String?
+    let updatedAt: String?
 
     enum CodingKeys: String, CodingKey {
-        case id
+        case reviewId = "review_id"
         case packageId = "package_id"
         case userId = "user_id"
+        case rating
+        case comment
         case userName = "user_name"
         case userAvatarUrl = "user_avatar_url"
-        case rating, comment
         case createdAt = "created_at"
+        case updatedAt = "updated_at"
     }
 
-    var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return formatter.string(from: createdAt)
-    }
+    var id: String { reviewId }
 
-    var stars: [Bool] {
-        (1...5).map { $0 <= rating }
+    init(
+        reviewId: String = UUID().uuidString,
+        packageId: String,
+        userId: String,
+        rating: Int,
+        comment: String? = nil,
+        userName: String? = nil,
+        userAvatarUrl: String? = nil,
+        createdAt: String? = nil,
+        updatedAt: String? = nil
+    ) {
+        self.reviewId = reviewId
+        self.packageId = packageId
+        self.userId = userId
+        self.rating = max(1, min(5, rating))
+        self.comment = comment
+        self.userName = userName
+        self.userAvatarUrl = userAvatarUrl
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
     }
 }

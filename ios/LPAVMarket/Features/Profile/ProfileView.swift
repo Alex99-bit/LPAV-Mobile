@@ -19,13 +19,13 @@ struct ProfileView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(authManager.displayName)
                                 .font(.headline)
-                                .foregroundStyle(brandText)
+                                .foregroundStyle(.lpavText)
                             Text(authManager.profile?.email ?? "")
                                 .font(.subheadline)
-                                .foregroundStyle(brandSubtext)
+                                .foregroundStyle(.lpavSecondaryText)
                             Text(authManager.profile?.roleName.capitalized ?? "Traveler")
                                 .font(.caption)
-                                .foregroundStyle(brandPrimary)
+                                .foregroundStyle(.primaryGreen)
                         }
                     }
                     .padding(.vertical, 8)
@@ -43,10 +43,10 @@ struct ProfileView: View {
                     } label: {
                         HStack {
                             Image(systemName: "bell")
-                                .foregroundStyle(brandPrimary)
+                                .foregroundStyle(.primaryGreen)
                                 .frame(width: 24)
                             Text("Notifications")
-                                .foregroundStyle(brandText)
+                                .foregroundStyle(.lpavText)
                         }
                     }
                 }
@@ -64,9 +64,9 @@ struct ProfileView: View {
                     } label: {
                         HStack {
                             Image(systemName: "arrow.right.square")
-                                .foregroundStyle(brandError)
+                                .foregroundStyle(.red)
                             Text("Sign Out")
-                                .foregroundStyle(brandError)
+                                .foregroundStyle(.red)
                         }
                     }
                 }
@@ -87,14 +87,14 @@ struct ProfileView: View {
     private func profileRow(icon: String, title: String) -> some View {
         HStack {
             Image(systemName: icon)
-                .foregroundStyle(brandPrimary)
+                .foregroundStyle(.primaryGreen)
                 .frame(width: 24)
             Text(title)
-                .foregroundStyle(brandText)
+                .foregroundStyle(.lpavText)
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.caption)
-                .foregroundStyle(brandSubtext)
+                .foregroundStyle(.lpavSecondaryText)
         }
     }
 }

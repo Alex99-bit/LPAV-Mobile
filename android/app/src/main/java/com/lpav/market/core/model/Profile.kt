@@ -1,17 +1,19 @@
 package com.lpav.market.core.model
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerialName
 
 @Serializable
 data class Profile(
-    @SerialName("id") val id: String,
-    @SerialName("user_id") val userId: String,
-    @SerialName("full_name") val fullName: String,
-    @SerialName("email") val email: String,
-    @SerialName("phone") val phone: String = "",
-    @SerialName("avatar_url") val avatarUrl: String? = null,
-    @SerialName("role") val role: UserRole = UserRole.TRAVELER,
-    @SerialName("created_at") val createdAt: String = "",
-    @SerialName("updated_at") val updatedAt: String = ""
+    val id: String = "",
+    val tenantId: String? = null,
+    val roleName: String = "traveler",
+    val fullName: String = "",
+    val email: String = "",
+    val avatarUrl: String? = null,
+    val phone: String? = null,
+    val preferredLanguage: String = "es",
+    val preferredCurrency: String = "USD",
+    val isOnboardingCompleted: Boolean = false,
+    val isVerified: Boolean = false,
+    val createdAt: String? = null
 )

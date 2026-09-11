@@ -39,10 +39,10 @@ struct AgencyProfileView: View {
                     HStack(spacing: 6) {
                         Text(agency.name)
                             .font(.title2.bold())
-                            .foregroundStyle(brandText)
+                            .foregroundStyle(.lpavText)
                         if agency.isVerified {
                             Image(systemName: "checkmark.seal.fill")
-                                .foregroundStyle(brandPrimary)
+                                .foregroundStyle(.primaryGreen)
                         }
                     }
 
@@ -56,13 +56,13 @@ struct AgencyProfileView: View {
                                     .font(.subheadline.bold())
                                 Text("(\(agency.reviewCount) reviews)")
                                     .font(.caption)
-                                    .foregroundStyle(brandSubtext)
+                                    .foregroundStyle(.lpavSecondaryText)
                             }
                         }
 
                         Label("\(agency.packageCount) packages", systemImage: "bag")
                             .font(.caption)
-                            .foregroundStyle(brandSubtext)
+                            .foregroundStyle(.lpavSecondaryText)
                     }
                 }
             }
@@ -70,7 +70,7 @@ struct AgencyProfileView: View {
             if let description = agency.description {
                 Text(description)
                     .font(.subheadline)
-                    .foregroundStyle(brandSubtext)
+                    .foregroundStyle(.lpavSecondaryText)
                     .lineSpacing(4)
             }
 
@@ -86,11 +86,11 @@ struct AgencyProfileView: View {
                 }
             }
             .padding(12)
-            .background(Color.brandCard)
+            .background(Color.lpavCard)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(brandBorder, lineWidth: 1)
+                    .stroke(.lpavSurface, lineWidth: 1)
             )
         }
         .padding(16)
@@ -100,11 +100,11 @@ struct AgencyProfileView: View {
         HStack(spacing: 10) {
             Image(systemName: icon)
                 .font(.subheadline)
-                .foregroundStyle(brandPrimary)
+                .foregroundStyle(.primaryGreen)
                 .frame(width: 20)
             Text(text)
                 .font(.subheadline)
-                .foregroundStyle(brandText)
+                .foregroundStyle(.lpavText)
         }
     }
 
@@ -112,11 +112,11 @@ struct AgencyProfileView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Published Packages (\(viewModel.packages.count))")
                 .font(.headline)
-                .foregroundStyle(brandText)
+                .foregroundStyle(.lpavText)
                 .padding(.horizontal, 16)
 
             if viewModel.packages.isEmpty {
-                EmptyStateView(
+                LPAVEmptyState(
                     icon: "bag",
                     title: "No packages",
                     message: "This agency hasn't published any packages yet"
@@ -127,7 +127,7 @@ struct AgencyProfileView: View {
                     LazyHStack(spacing: 12) {
                         ForEach(viewModel.packages) { package in
                             NavigationLink(value: PackageRoute(id: package.id)) {
-                                PackageCardView(package: package)
+                                packageCardView(package: package)
                                     .frame(width: 180)
                             }
                             .buttonStyle(.plain)

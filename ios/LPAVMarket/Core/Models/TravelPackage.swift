@@ -1,74 +1,85 @@
 import Foundation
 
 struct TravelPackage: Codable, Identifiable, Sendable {
-    let id: String
-    let tenantId: String
+    let packageId: String
+    let tenantId: String?
     let title: String
-    let slug: String
-    let description: String?
-    let coverImageUrl: String?
     let region: String
-    let departureCity: String
-    let destination: String?
-    let durationDays: Int
-    let durationNights: Int
-    let priceMxn: Double
-    let originalPriceMxn: Double?
-    let pointsPrice: Int
-    let currency: Currency
-    let includedItems: [String]?
-    let excludedItems: [String]?
-    let maxGroupSize: Int
-    let availableSpots: Int
-    let status: PublicationStatus
-    let rating: Double?
-    let reviewCount: Int
-    let departureDate: Date?
-    let returnDate: Date?
-    let createdAt: Date
-    let updatedAt: Date?
+    let price: Double
+    let currency: String
+    let urlFlyerStorage: String?
+    let urlThumbnailStorage: String?
+    let hasCoordinator: Bool?
+    let publicationStatus: String?
+    let departureDate: String?
+    let description: String?
+    let duration: String?
+    let maxGuests: Int?
+    let includes: [String]?
+    let excludes: [String]?
+    let isFeatured: Bool?
+    let createdAt: String?
 
     enum CodingKeys: String, CodingKey {
-        case id
+        case packageId = "package_id"
         case tenantId = "tenant_id"
-        case title, slug, description
-        case coverImageUrl = "cover_image_url"
+        case title
         case region
-        case departureCity = "departure_city"
-        case destination
-        case durationDays = "duration_days"
-        case durationNights = "duration_nights"
-        case priceMxn = "price_mxn"
-        case originalPriceMxn = "original_price_mxn"
-        case pointsPrice = "points_price"
+        case price
         case currency
-        case includedItems = "included_items"
-        case excludedItems = "excluded_items"
-        case maxGroupSize = "max_group_size"
-        case availableSpots = "available_spots"
-        case status, rating
-        case reviewCount = "review_count"
+        case urlFlyerStorage = "url_flyer_storage"
+        case urlThumbnailStorage = "url_thumbnail_storage"
+        case hasCoordinator = "has_coordinator"
+        case publicationStatus = "publication_status"
         case departureDate = "departure_date"
-        case returnDate = "return_date"
+        case description
+        case duration
+        case maxGuests = "max_guests"
+        case includes
+        case excludes
+        case isFeatured = "is_featured"
         case createdAt = "created_at"
-        case updatedAt = "updated_at"
     }
 
-    var formattedPrice: String {
-        "\(currency.symbol)\(Int(priceMxn).formatted())"
-    }
+    var id: String { packageId }
 
-    var durationText: String {
-        "\(durationDays)D/\(durationNights)N"
-    }
-
-    var hasDiscount: Bool {
-        guard let original = originalPriceMxn else { return false }
-        return original > priceMxn
-    }
-
-    var discountPercentage: Double {
-        guard let original = originalPriceMxn, original > priceMxn else { return 0 }
-        return ((original - priceMxn) / original) * 100
+    init(
+        packageId: String,
+        tenantId: String? = nil,
+        title: String,
+        region: String,
+        price: Double,
+        currency: String,
+        urlFlyerStorage: String? = nil,
+        urlThumbnailStorage: String? = nil,
+        hasCoordinator: Bool? = nil,
+        publicationStatus: String? = nil,
+        departureDate: String? = nil,
+        description: String? = nil,
+        duration: String? = nil,
+        maxGuests: Int? = nil,
+        includes: [String]? = nil,
+        excludes: [String]? = nil,
+        isFeatured: Bool? = nil,
+        createdAt: String? = nil
+    ) {
+        self.packageId = packageId
+        self.tenantId = tenantId
+        self.title = title
+        self.region = region
+        self.price = price
+        self.currency = currency
+        self.urlFlyerStorage = urlFlyerStorage
+        self.urlThumbnailStorage = urlThumbnailStorage
+        self.hasCoordinator = hasCoordinator
+        self.publicationStatus = publicationStatus
+        self.departureDate = departureDate
+        self.description = description
+        self.duration = duration
+        self.maxGuests = maxGuests
+        self.includes = includes
+        self.excludes = excludes
+        self.isFeatured = isFeatured
+        self.createdAt = createdAt
     }
 }

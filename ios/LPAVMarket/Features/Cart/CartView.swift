@@ -1,158 +1,136 @@
 import SwiftUI
 
 struct CartView: View {
-    @State private var viewModel = CartViewModel()
-    @Environment(AuthManager.self) private var authManager
+    @Environment(CheckoutViewModel.self) private var vm
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if viewModel.items.isEmpty {
-                    EmptyStateView(
-                        icon: "cart",
-                        title: "Your cart is empty",
-                        message: "Browse packages and add them to your cart"
-                    )
-                } else {
-                    cartList
+        Group {
+            if vm.isLoading {
+                LPAVLoadingView(message: "Loading cart...")
+            } else if vm.cartPackages.isEmpty {
+                LPAVEmptyState(
+                    icon: "cart",
+                    title: "Your Cart is Empty",
+                    message: "Browse packages and add them to your cart to start planning your trip",
+                    actionTitle: "Browse Packages"
+                ) {
+                    NotificationCenter.default.post(name: .navigateToPackage, object: nil)
                 }
-            }
-            .navigationTitle("Cart")
-            .toolbar {
-                if !viewModel.items.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Clear All") {
-                            viewModel.clearCart()
+            } else {
+                ScrollView {
+                    VStack(spacing: 16) {
+                        ForEach(vm.cartPackages) { package in
+                            CartPackageRow(package: package) {
+                                vm.removePackage(package.packageId)
+                            }
                         }
-                        .foregroundStyle(brandError)
+
+                        priceBreakdown
+
+                        NavigationLink(destination: CheckoutView()) {
+                            Text("Proceed to Checkout")
+                                .fontWeight(.semibold)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(Color.primaryGreen)
+                                .foregroundColor(.white)
+                                .cornerRadius(12)
+                        }
                     }
+                    .padding()
                 }
+                .background(Color.lpavBackground)
             }
-            .safeAreaInset(edge: .bottom) {
-                if !viewModel.items.isEmpty {
-                    checkoutBar
-                }
-            }
-            .onAppear {
-                viewModel.loadItems()
-            }
+        }
+        .navigationTitle("Cart")
+        .task {
+            await vm.loadCartPackages()
+            await vm.loadWallet()
         }
     }
 
-    private var cartList: some View {
-        List {
-            ForEach(viewModel.items) { item in
-                cartItemRow(item: item)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
-                            viewModel.removeItem(packageId: item.packageId)
-                        } label: {
-                            Label("Remove", systemImage: "trash")
-                        }
+    private var priceBreakdown: some View {
+        LPAVCard {
+            VStack(spacing: 10) {
+                HStack {
+                    Text("Subtotal")
+                        .foregroundColor(.lpavSecondaryText)
+                    Spacer()
+                    Text(vm.subtotal.formattedCurrency(vm.currency))
+                        .foregroundColor(.lpavText)
+                }
+                HStack {
+                    Text("Platform Fee (5%)")
+                        .foregroundColor(.lpavSecondaryText)
+                    Spacer()
+                    Text(vm.platformFee.formattedCurrency(vm.currency))
+                        .foregroundColor(.lpavText)
+                }
+                if vm.pointsDiscount > 0 {
+                    HStack {
+                        Text("Points Discount")
+                            .foregroundColor(.primaryGreen)
+                        Spacer()
+                        Text("-\(vm.pointsDiscount.formattedCurrency(vm.currency))")
+                            .foregroundColor(.primaryGreen)
                     }
+                }
+                Divider()
+                HStack {
+                    Text("Total")
+                        .fontWeight(.bold)
+                        .foregroundColor(.lpavText)
+                    Spacer()
+                    Text(vm.total.formattedCurrency(vm.currency))
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primaryGreen)
+                }
             }
+            .font(.subheadline)
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
     }
+}
 
-    private func cartItemRow(item: CartItem) -> some View {
+struct CartPackageRow: View {
+    let package: TravelPackage
+    let onRemove: () -> Void
+
+    var body: some View {
         HStack(spacing: 12) {
-            AsyncImageView(
-                url: item.coverImageUrl,
-                width: 80,
-                height: 80
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            AsyncImageView(url: package.urlThumbnailStorage, placeholder: "airplane.departure", aspectRatio: 4/3)
+                .frame(width: 80, height: 60)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(item.packageTitle)
-                    .font(.subheadline.bold())
-                    .foregroundStyle(brandText)
+                Text(package.title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.lpavText)
                     .lineLimit(2)
 
-                Text(item.region)
+                Text(package.region)
                     .font(.caption)
-                    .foregroundStyle(brandSubtext)
+                    .foregroundColor(.lpavSecondaryText)
 
-                HStack {
-                    Text(item.formattedPrice)
-                        .font(.subheadline.bold())
-                        .foregroundStyle(brandPrimary)
+                Text(package.price.formattedCurrency(package.currency))
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primaryGreen)
+            }
 
-                    Spacer()
+            Spacer()
 
-                    HStack(spacing: 12) {
-                        Button {
-                            viewModel.updateQuantity(
-                                packageId: item.packageId,
-                                quantity: item.quantity - 1
-                            )
-                        } label: {
-                            Image(systemName: "minus.circle.fill")
-                                .foregroundStyle(brandSubtext)
-                        }
-
-                        Text("\(item.quantity)")
-                            .font(.subheadline.bold())
-                            .frame(minWidth: 20)
-
-                        Button {
-                            viewModel.updateQuantity(
-                                packageId: item.packageId,
-                                quantity: item.quantity + 1
-                            )
-                        } label: {
-                            Image(systemName: "plus.circle.fill")
-                                .foregroundStyle(brandPrimary)
-                        }
-                    }
-                }
+            Button(role: .destructive) {
+                onRemove()
+            } label: {
+                Image(systemName: "trash")
+                    .font(.caption)
+                    .foregroundColor(.red)
             }
         }
-        .padding(12)
-        .background(Color.brandCard)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(brandBorder, lineWidth: 1)
-        )
-        .padding(.horizontal, 16)
-        .padding(.vertical, 4)
-    }
-
-    private var checkoutBar: some View {
-        VStack(spacing: 12) {
-            Divider()
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(viewModel.itemCount) item(s)")
-                        .font(.caption)
-                        .foregroundStyle(brandSubtext)
-                    Text(viewModel.formattedTotal)
-                        .font(.title3.bold())
-                        .foregroundStyle(brandText)
-                }
-
-                Spacer()
-
-                NavigationLink {
-                    CheckoutView(items: viewModel.items)
-                        .environment(authManager)
-                } label: {
-                    Text("Checkout")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
-                        .background(brandPrimary)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-            }
-            .padding(.horizontal, 16)
-        }
-        .background(.ultraThinMaterial)
+        .padding(10)
+        .background(Color.lpavCard)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.04), radius: 4, y: 1)
     }
 }

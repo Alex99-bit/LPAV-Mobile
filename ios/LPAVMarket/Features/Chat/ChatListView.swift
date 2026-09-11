@@ -1,69 +1,82 @@
 import SwiftUI
 
-struct ChatConversation: Codable, Identifiable, Sendable {
-    let id: String
-    let recipientName: String?
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case recipientName = "recipient_name"
-    }
-}
-
 struct ChatListView: View {
-    @Environment(AuthManager.self) private var authManager
-    @State private var conversations: [ConversationRoute] = []
-    @State private var isLoading = false
+    @Environment(ChatViewModel.self) private var vm
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if conversations.isEmpty {
-                    EmptyStateView(
-                        icon: "bubble.left.and.bubble.right",
-                        title: "No conversations",
-                        message: "Start a chat with an agency to begin"
-                    )
-                } else {
-                    List(conversations) { conversation in
-                        NavigationLink(value: conversation) {
-                            HStack(spacing: 12) {
-                                Image(systemName: "person.circle.fill")
-                                    .font(.title2)
-                                    .foregroundStyle(brandPrimary)
-                                Text(conversation.name)
-                                    .font(.subheadline)
-                                    .foregroundStyle(brandText)
-                            }
+        Group {
+            if vm.isLoading {
+                LPAVLoadingView(message: "Loading conversations...")
+            } else if vm.conversations.isEmpty {
+                LPAVEmptyState(
+                    icon: "bubble.left.and.bubble.right",
+                    title: "No Conversations",
+                    message: "Chat with agencies about packages you're interested in",
+                    actionTitle: "Browse Packages"
+                ) {
+                    NotificationCenter.default.post(name: .navigateToPackage, object: nil)
+                }
+            } else {
+                List {
+                    ForEach(vm.conversations) { conversation in
+                        NavigationLink(destination: ChatView(conversationId: conversation.conversationId)) {
+                            conversationRow(conversation)
                         }
                     }
-                    .listStyle(.plain)
                 }
-            }
-            .navigationTitle("Messages")
-            .navigationDestination(for: ConversationRoute.self) { route in
-                ChatView(conversationId: route.id, recipientName: route.name)
-                    .environment(authManager)
-            }
-            .task {
-                isLoading = true
-                do {
-                    let userId = AuthManager.currentUserId
-                    let response: [ChatConversation] = try await supabase
-                        .from("chat_conversations")
-                        .select()
-                        .or("user1_id.eq.\(userId),user2_id.eq.\(userId)")
-                        .execute()
-                        .value
-                    conversations = response.map {
-                        ConversationRoute(id: $0.id, name: $0.recipientName ?? "Unknown")
-                    }
-                } catch {}
-                isLoading = false
+                .listStyle(.plain)
             }
         }
+        .navigationTitle("Chat")
+        .refreshable {
+            await vm.loadConversations()
+        }
+        .task {
+            if vm.conversations.isEmpty {
+                await vm.loadConversations()
+            }
+        }
+    }
+
+    private func conversationRow(_ conversation: ChatConversation) -> some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(conversation.status == "ai_active" ? Color.primaryGreen.opacity(0.2) : Color.lightBlue.opacity(0.2))
+                .frame(width: 48, height: 48)
+                .overlay(
+                    Image(systemName: conversation.status == "ai_active" ? "brain.head.profile" : "person.fill")
+                        .font(.title3)
+                        .foregroundColor(conversation.status == "ai_active" ? .primaryGreen : .lightBlue)
+                )
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(conversation.status == "ai_active" ? "AI Assistant" : "Travel Agency")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.lpavText)
+
+                    if conversation.status == "ai_active" {
+                        LPAVBadge(text: "AI", color: .primaryGreen)
+                    }
+                }
+
+                if let lastMessage = conversation.lastMessage {
+                    Text(lastMessage)
+                        .font(.caption)
+                        .foregroundColor(.lpavSecondaryText)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer()
+
+            if let date = conversation.updatedAt?.toDateFromISO() {
+                Text(date.timeAgo)
+                    .font(.caption2)
+                    .foregroundColor(.lpavSecondaryText)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }

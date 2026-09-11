@@ -1,85 +1,174 @@
 import SwiftUI
+import Supabase
 
+@MainActor
 @Observable
 final class HomeViewModel {
     var packages: [TravelPackage] = []
+    var featuredPackages: [TravelPackage] = []
+    var wishlistPackageIds: [String] = []
     var isLoading = false
-    var errorMessage: String?
-    var searchText = ""
+    var isLoadingMore = false
+    var searchError: String?
     var selectedRegion: String?
-    var selectedDepartureCity: String?
-    var priceRange: ClosedRange<Double> = 0...50000
-    var showFilters = false
+    var minPrice: Double?
+    var maxPrice: Double?
+    var searchQuery = ""
+    var currentPage = 1
+    var hasMorePages = true
+    var geminiSuggestions: [String] = []
+    var isGeminiSearching = false
 
-    let regions = [
-        "All Regions", "Caribbean", "Pacific Coast", "Central Highlands",
-        "Yucatan Peninsula", "Baja California", "Oaxaca Coast", "Riviera Maya",
-        "Lake Chapala", "Colonial Cities", "Copper Canyon", "Huasteca",
-        "Sierra Norte", "Costa Chica", "Ixtapa-Zihuatanejo", "San Miguel de Allende"
-    ]
-
-    let departureCities = [
-        "All Cities", "Mexico City", "Guadalajara", "Monterrey", "Cancun",
-        "Puerto Vallarta", "Tijuana", "Leon", "Merida", "Oaxaca",
-        "Puebla", "Queretaro", "San Luis Potosi", "Aguascalientes",
-        "Morelia", "Toluca", "Veracruz", "Tampico", "Mazatlan",
-        "Hermosillo", "Chihuahua", "Durango", "Zacatecas", "Ciudad Juarez"
-    ]
-
-    var filteredPackages: [TravelPackage] {
-        var result = packages
-
-        if !searchText.isEmpty {
-            result = result.filter {
-                $0.title.localizedCaseInsensitiveContains(searchText) ||
-                $0.region.localizedCaseInsensitiveContains(searchText) ||
-                $0.departureCity.localizedCaseInsensitiveContains(searchText)
-            }
-        }
-
-        if let region = selectedRegion, region != "All Regions" {
-            result = result.filter { $0.region == region }
-        }
-
-        if let city = selectedDepartureCity, city != "All Cities" {
-            result = result.filter { $0.departureCity == city }
-        }
-
-        result = result.filter {
-            $0.priceMxn >= priceRange.lowerBound && $0.priceMxn <= priceRange.upperBound
-        }
-
-        return result
-    }
-
-    var hasActiveFilters: Bool {
-        selectedRegion != nil || selectedDepartureCity != nil ||
-        priceRange != 0...50000 || !searchText.isEmpty
-    }
+    private let pageSize = 20
 
     func loadPackages() async {
         isLoading = true
-        errorMessage = nil
         defer { isLoading = false }
+
         do {
-            let response: [TravelPackage] = try await supabase
-                .from("travel_packages")
+            packages = try await APIRouter.Packages.fetchAll(
+                page: 1,
+                limit: pageSize,
+                region: selectedRegion,
+                minPrice: minPrice,
+                maxPrice: maxPrice,
+                searchQuery: searchQuery.isEmpty ? nil : searchQuery
+            )
+            currentPage = 1
+            hasMorePages = packages.count >= pageSize
+        } catch {
+            searchError = error.localizedDescription
+        }
+    }
+
+    func loadMore() async {
+        guard !isLoadingMore, hasMorePages else { return }
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+
+        do {
+            let nextPage = currentPage + 1
+            let more = try await APIRouter.Packages.fetchAll(
+                page: nextPage,
+                limit: pageSize,
+                region: selectedRegion,
+                minPrice: minPrice,
+                maxPrice: maxPrice,
+                searchQuery: searchQuery.isEmpty ? nil : searchQuery
+            )
+            packages.append(contentsOf: more)
+            currentPage = nextPage
+            hasMorePages = more.count >= pageSize
+        } catch {
+            print("Failed to load more: \(error)")
+        }
+    }
+
+    func loadFeatured() async {
+        do {
+            featuredPackages = try await APIRouter.Packages.fetchFeatured()
+        } catch {
+            print("Failed to load featured: \(error)")
+        }
+    }
+
+    func loadWishlist() async {
+        guard let userId = AuthManager.shared.currentUser?.profile.id else { return }
+        do {
+            let response: [FavoritePackage] = try await supabase.database
+                .from("wishlists")
                 .select()
-                .eq("status", value: "published")
-                .order("created_at", ascending: false)
-                .limit(50)
+                .eq("user_id", value: userId)
                 .execute()
                 .value
-            packages = response
+            wishlistPackageIds = response.map(\.packageId)
         } catch {
-            errorMessage = error.localizedDescription
+            print("Failed to load wishlist: \(error)")
+        }
+    }
+
+    func toggleWishlist(_ packageId: String) async {
+        if wishlistPackageIds.contains(packageId) {
+            await removeFromWishlist(packageId)
+        } else {
+            await addToWishlist(packageId)
+        }
+    }
+
+    func isInWishlist(_ packageId: String) -> Bool {
+        wishlistPackageIds.contains(packageId)
+    }
+
+    private func addToWishlist(_ packageId: String) async {
+        wishlistPackageIds.append(packageId)
+        guard let userId = AuthManager.shared.currentUser?.profile.id else { return }
+        do {
+            try await supabase.database
+                .from("wishlists")
+                .insert([
+                    "user_id": userId,
+                    "package_id": packageId
+                ])
+                .execute()
+        } catch {
+            print("Failed to add to wishlist: \(error)")
+        }
+    }
+
+    private func removeFromWishlist(_ packageId: String) async {
+        wishlistPackageIds.removeAll { $0 == packageId }
+        guard let userId = AuthManager.shared.currentUser?.profile.id else { return }
+        do {
+            try await supabase.database
+                .from("wishlists")
+                .delete()
+                .eq("user_id", value: userId)
+                .eq("package_id", value: packageId)
+                .execute()
+        } catch {
+            print("Failed to remove from wishlist: \(error)")
+        }
+    }
+
+    func searchWithGemini(_ query: String) async {
+        isGeminiSearching = true
+        defer { isGeminiSearching = false }
+
+        do {
+            let response = try await EdgeFunction.Functions.searchWithGemini(
+                query: query,
+                context: [
+                    "selected_region": selectedRegion as Any,
+                    "price_min": minPrice as Any,
+                    "price_max": maxPrice as Any
+                ]
+            )
+            geminiSuggestions = response.suggestions ?? []
+            searchQuery = query
+            await loadPackages()
+        } catch {
+            searchError = error.localizedDescription
         }
     }
 
     func clearFilters() {
         selectedRegion = nil
-        selectedDepartureCity = nil
-        priceRange = 0...50000
-        searchText = ""
+        minPrice = nil
+        maxPrice = nil
+        searchQuery = ""
+    }
+
+    var hasActiveFilters: Bool {
+        selectedRegion != nil || minPrice != nil || maxPrice != nil || !searchQuery.isEmpty
+    }
+}
+
+struct FavoritePackage: Codable, Sendable {
+    let packageId: String
+    let userId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case packageId = "package_id"
+        case userId = "user_id"
     }
 }

@@ -1,85 +1,154 @@
 import SwiftUI
 
 struct ChatView: View {
+    @Environment(ChatViewModel.self) private var vm
     let conversationId: String
-    let recipientName: String
-    @State private var viewModel = ChatViewModel()
-    @Environment(AuthManager.self) private var authManager
+    @State private var scrolledToBottom = false
 
     var body: some View {
         VStack(spacing: 0) {
-            if viewModel.isLoading && viewModel.messages.isEmpty {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                messagesScrollView
-            }
-            inputBar
+            messageList
+            messageInput
         }
-        .navigationTitle(recipientName)
+        .background(Color.lpavBackground)
         .navigationBarTitleDisplayMode(.inline)
-        .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
-            Button("OK") { viewModel.errorMessage = nil }
-        } message: {
-            Text(viewModel.errorMessage ?? "")
-        }
         .task {
-            await viewModel.loadMessages(conversationId: conversationId)
-            viewModel.listenForMessages(conversationId: conversationId)
+            await vm.loadMessages(conversationId: conversationId)
+        }
+        .onDisappear {
+            vm.unsubscribe()
         }
     }
 
-    private var messagesScrollView: some View {
-        ScrollViewReader { proxy in
+    private var messageList: some View {
+        ScrollViewReader { scrollProxy in
             ScrollView {
-                LazyVStack(spacing: 8) {
-                    ForEach(viewModel.messages) { message in
-                        MessageBubbleView(message: message)
-                            .id(message.id)
+                LazyVStack(spacing: 12) {
+                    ForEach(vm.messages) { message in
+                        MessageBubbleView(
+                            message: message,
+                            isCurrentUser: message.senderId == AuthManager.shared.currentUser?.profile.id
+                        )
+                        .id(message.messageId)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding()
             }
-            .onChange(of: viewModel.messages.count) {
-                withAnimation {
-                    if let lastMessage = viewModel.messages.last {
-                        proxy.scrollTo(lastMessage.id, anchor: .bottom)
+            .onChange(of: vm.messages.count) { _, _ in
+                if let lastMessage = vm.messages.last {
+                    withAnimation {
+                        scrollProxy.scrollTo(lastMessage.messageId, anchor: .bottom)
                     }
                 }
             }
         }
     }
 
-    private var inputBar: some View {
-        HStack(spacing: 12) {
-            TextField("Type a message...", text: $viewModel.newMessageText)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(Color.brandCard)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(brandBorder, lineWidth: 1)
-                )
+    private var messageInput: some View {
+        HStack(spacing: 8) {
+            TextField("Type a message...", text: Binding(
+                get: { vm.newMessageText },
+                set: { vm.newMessageText = $0 }
+            ))
+            .textFieldStyle(.plain)
+            .padding(10)
+            .background(Color.lpavSurface)
+            .cornerRadius(20)
 
             Button {
-                Task {
-                    await viewModel.sendMessage(
-                        conversationId: conversationId,
-                        senderName: authManager.displayName
-                    )
-                }
+                Task { await vm.sendMessage() }
             } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(viewModel.newMessageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? brandBorder : brandPrimary)
+                if vm.isSending {
+                    ProgressView()
+                        .tint(.white)
+                } else {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.title2)
+                }
             }
-            .disabled(viewModel.newMessageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .foregroundColor(.primaryGreen)
+            .disabled(vm.newMessageText.trimmingCharacters(in: .whitespaces).isEmpty || vm.isSending)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal)
         .padding(.vertical, 8)
-        .background(.ultraThinMaterial)
+        .background(Color.lpavCard)
+    }
+}
+
+struct MessageBubbleView: View {
+    let message: ChatMessage
+    let isCurrentUser: Bool
+
+    var body: some View {
+        HStack(alignment: .bottom) {
+            if isCurrentUser { Spacer(minLength: 60) }
+
+            VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
+                if message.isSystem == true {
+                    systemMessageView
+                } else {
+                    userMessageView
+                }
+            }
+
+            if !isCurrentUser { Spacer(minLength: 60) }
+        }
+    }
+
+    private var userMessageView: some View {
+        VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 2) {
+            if !isCurrentUser {
+                Text(getSenderName())
+                    .font(.caption2)
+                    .foregroundColor(.lpavSecondaryText)
+                    .padding(.leading, 4)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                if message.isCensored == true {
+                    HStack {
+                        Image(systemName: "exclamationmark.shield.fill")
+                            .foregroundColor(.orange)
+                        Text("This message was flagged and removed")
+                            .font(.caption)
+                            .foregroundColor(.lpavSecondaryText)
+                    }
+                } else {
+                    Text(message.messageText)
+                        .font(.subheadline)
+                        .foregroundColor(isCurrentUser ? .white : .lpavText)
+                }
+
+                if let createdAt = message.createdAt {
+                    Text(createdAt.toDateFromISO()?.timeAgo ?? createdAt)
+                        .font(.caption2)
+                        .foregroundColor(isCurrentUser ? .white.opacity(0.7) : .lpavSecondaryText)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(isCurrentUser ? Color.primaryGreen : Color.lpavSurface)
+            .cornerRadius(16, corners: isCurrentUser ? [.topLeft, .topRight, .bottomLeft] : [.topLeft, .topRight, .bottomRight])
+        }
+    }
+
+    private var systemMessageView: some View {
+        HStack {
+            Spacer()
+            Text(message.messageText)
+                .font(.caption)
+                .foregroundColor(.lpavSecondaryText)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.lpavSurface)
+                .cornerRadius(12)
+            Spacer()
+        }
+    }
+
+    private func getSenderName() -> String {
+        if message.senderId == "ai_assistant" { return "AI Assistant" }
+        if message.senderId.hasPrefix("agent_") { return "Agent" }
+        return message.senderId.truncatedAddress
     }
 }

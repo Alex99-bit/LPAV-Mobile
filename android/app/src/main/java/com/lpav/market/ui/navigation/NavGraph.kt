@@ -1,170 +1,168 @@
 package com.lpav.market.ui.navigation
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.navigation.NavHostController
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.lpav.market.ui.auth.LoginScreen
 import com.lpav.market.ui.auth.RegisterScreen
+import com.lpav.market.ui.auth.OnboardingQuestionnaireScreen
+import com.lpav.market.ui.auth.AgencyAuthScreen
+import com.lpav.market.ui.auth.AgencyRegisterScreen
 import com.lpav.market.ui.home.HomeScreen
-import com.lpav.market.ui.packagedetail.PackageDetailScreen
-import com.lpav.market.ui.cart.CartScreen
-import com.lpav.market.ui.checkout.CheckoutScreen
-import com.lpav.market.ui.orders.OrdersScreen
-import com.lpav.market.ui.wallet.WalletScreen
+import com.lpav.market.ui.home.PackageDetailScreen
+import com.lpav.market.ui.home.WishlistScreen
+import com.lpav.market.ui.chat.ChatListScreen
 import com.lpav.market.ui.chat.ChatScreen
-import com.lpav.market.ui.profile.AgencyProfileScreen
-import com.lpav.market.ui.notifications.NotificationsScreen
-
-object Routes {
-    const val LOGIN = "login"
-    const val REGISTER = "register"
-    const val HOME = "home"
-    const val PACKAGE_DETAIL = "package_detail/{packageId}"
-    const val CART = "cart"
-    const val CHECKOUT = "checkout"
-    const val ORDERS = "orders"
-    const val WALLET = "wallet"
-    const val CHAT = "chat/{conversationId}"
-    const val AGENCY_PROFILE = "agency_profile/{agencyId}"
-    const val NOTIFICATIONS = "notifications"
-
-    fun packageDetail(packageId: String) = "package_detail/$packageId"
-    fun chat(conversationId: String) = "chat/$conversationId"
-    fun agencyProfile(agencyId: String) = "agency_profile/$agencyId"
-}
+import com.lpav.market.ui.checkout.CartScreen
+import com.lpav.market.ui.checkout.CheckoutScreen
+import com.lpav.market.ui.checkout.OrdersScreen
+import com.lpav.market.ui.profile.ProfileScreen
+import com.lpav.market.ui.profile.PointsWalletScreen
+import com.lpav.market.ui.agency.AgencyDashboardScreen
+import com.lpav.market.ui.agency.AgencyFlyersScreen
+import com.lpav.market.ui.agency.AgencyCRMScreen
+import com.lpav.market.ui.agency.AgencyFinanceScreen
+import com.lpav.market.ui.agency.AgencyLogisticsScreen
+import com.lpav.market.ui.agency.AgencySettingsScreen
+import com.lpav.market.ui.home.HomeViewModel
 
 @Composable
-fun LPAVNavGraph(
-    navController: NavHostController = rememberNavController()
-) {
-    NavHost(
-        navController = navController,
-        startDestination = Routes.LOGIN
-    ) {
-        composable(Routes.LOGIN) {
-            LoginScreen(
-                onNavigateToRegister = { navController.navigate(Routes.REGISTER) },
-                onNavigateToHome = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.LOGIN) { inclusive = true }
-                    }
-                }
+fun NavGraph() {
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    val bottomNavVisible = Screen.bottomNavItems.any { it.route == currentRoute } ||
+        currentRoute in listOf("wishlist")
+
+    Scaffold(
+        bottomBar = {
+            BottomNavBar(
+                navController = navController,
+                visible = bottomNavVisible
             )
         }
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = Screen.Home.route,
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable(Screen.Home.route) {
+                val viewModel: HomeViewModel = hiltViewModel()
+                HomeScreen(
+                    navController = navController,
+                    viewModel = viewModel
+                )
+            }
 
-        composable(Routes.REGISTER) {
-            RegisterScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToHome = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.LOGIN) { inclusive = true }
-                    }
-                }
-            )
-        }
+            composable(Screen.Search.route) {
+                HomeScreen(navController = navController, viewModel = hiltViewModel())
+            }
 
-        composable(Routes.HOME) {
-            HomeScreen(
-                onPackageClick = { packageId ->
-                    navController.navigate(Routes.packageDetail(packageId))
-                },
-                onCartClick = { navController.navigate(Routes.CART) },
-                onNotificationsClick = { navController.navigate(Routes.NOTIFICATIONS) },
-                onAgencyClick = { agencyId ->
-                    navController.navigate(Routes.agencyProfile(agencyId))
-                },
-                onLogout = {
-                    navController.navigate(Routes.LOGIN) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                }
-            )
-        }
+            composable(Screen.Cart.route) {
+                CartScreen(navController = navController)
+            }
 
-        composable(
-            route = Routes.PACKAGE_DETAIL,
-            arguments = listOf(navArgument("packageId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val packageId = backStackEntry.arguments?.getString("packageId") ?: ""
-            PackageDetailScreen(
-                packageId = packageId,
-                onNavigateBack = { navController.popBackStack() },
-                onAddToCart = { navController.navigate(Routes.CART) },
-                onAgencyClick = { agencyId ->
-                    navController.navigate(Routes.agencyProfile(agencyId))
-                }
-            )
-        }
+            composable(Screen.Chat.route) {
+                ChatListScreen(navController = navController)
+            }
 
-        composable(Routes.CART) {
-            CartScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onCheckout = { navController.navigate(Routes.CHECKOUT) },
-                onPackageClick = { packageId ->
-                    navController.navigate(Routes.packageDetail(packageId))
-                }
-            )
-        }
+            composable(Screen.Profile.route) {
+                ProfileScreen(navController = navController)
+            }
 
-        composable(Routes.CHECKOUT) {
-            CheckoutScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onOrderComplete = {
-                    navController.navigate(Routes.ORDERS) {
-                        popUpTo(Routes.HOME)
-                    }
-                }
-            )
-        }
+            composable(
+                route = "package/{packageId}",
+                arguments = listOf(navArgument("packageId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val packageId = backStackEntry.arguments?.getString("packageId") ?: ""
+                PackageDetailScreen(
+                    navController = navController,
+                    packageId = packageId
+                )
+            }
 
-        composable(Routes.ORDERS) {
-            OrdersScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onPackageClick = { packageId ->
-                    navController.navigate(Routes.packageDetail(packageId))
-                }
-            )
-        }
+            composable(Screen.Wishlist.route) {
+                WishlistScreen(navController = navController)
+            }
 
-        composable(Routes.WALLET) {
-            WalletScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+            composable(Screen.Login.route) {
+                LoginScreen(navController = navController)
+            }
 
-        composable(
-            route = Routes.CHAT,
-            arguments = listOf(navArgument("conversationId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
-            ChatScreen(
-                conversationId = conversationId,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+            composable(Screen.Register.route) {
+                RegisterScreen(navController = navController)
+            }
 
-        composable(
-            route = Routes.AGENCY_PROFILE,
-            arguments = listOf(navArgument("agencyId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val agencyId = backStackEntry.arguments?.getString("agencyId") ?: ""
-            AgencyProfileScreen(
-                agencyId = agencyId,
-                onNavigateBack = { navController.popBackStack() },
-                onPackageClick = { packageId ->
-                    navController.navigate(Routes.packageDetail(packageId))
-                }
-            )
-        }
+            composable(Screen.Onboarding.route) {
+                OnboardingQuestionnaireScreen(navController = navController)
+            }
 
-        composable(Routes.NOTIFICATIONS) {
-            NotificationsScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
+            composable(Screen.AgencyAuth.route) {
+                AgencyAuthScreen(navController = navController)
+            }
+
+            composable(Screen.AgencyRegister.route) {
+                AgencyRegisterScreen(navController = navController)
+            }
+
+            composable(Screen.Checkout.route) {
+                CheckoutScreen(navController = navController)
+            }
+
+            composable(Screen.Orders.route) {
+                OrdersScreen(navController = navController)
+            }
+
+            composable(Screen.PointsWallet.route) {
+                PointsWalletScreen(navController = navController)
+            }
+
+            composable(Screen.AgencyDashboard.route) {
+                AgencyDashboardScreen(navController = navController)
+            }
+
+            composable(Screen.AgencyFlyers.route) {
+                AgencyFlyersScreen(navController = navController)
+            }
+
+            composable(Screen.AgencyCRM.route) {
+                AgencyCRMScreen(navController = navController)
+            }
+
+            composable(Screen.AgencyFinance.route) {
+                AgencyFinanceScreen(navController = navController)
+            }
+
+            composable(Screen.AgencyLogistics.route) {
+                AgencyLogisticsScreen(navController = navController)
+            }
+
+            composable(Screen.AgencySettings.route) {
+                AgencySettingsScreen(navController = navController)
+            }
+
+            composable(
+                route = "chat/{conversationId}",
+                arguments = listOf(navArgument("conversationId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
+                ChatScreen(
+                    navController = navController,
+                    conversationId = conversationId
+                )
+            }
         }
     }
 }

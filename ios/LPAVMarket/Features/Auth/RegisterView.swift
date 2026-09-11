@@ -6,185 +6,122 @@ struct RegisterView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                headerSection
-                formSection
-                accountTypeSection
-                actionSection
-                footerSection
+        ZStack {
+            Color.lpavBackground.ignoresSafeArea()
+
+            ScrollView {
+                VStack(spacing: 24) {
+                    VStack(spacing: 8) {
+                        Text("Create Account")
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundColor(.lpavText)
+
+                        Text("Join the travel marketplace")
+                            .font(.subheadline)
+                            .foregroundColor(.lpavSecondaryText)
+                    }
+                    .padding(.top, 20)
+
+                    LPAVTextField(
+                        title: "Full Name",
+                        text: $viewModel.fullName,
+                        placeholder: "John Doe",
+                        icon: "person"
+                    )
+
+                    LPAVTextField(
+                        title: "Email",
+                        text: $viewModel.email,
+                        placeholder: "you@example.com",
+                        icon: "envelope",
+                        keyboardType: .emailAddress,
+                        autocapitalization: .never
+                    )
+
+                    LPAVTextField(
+                        title: "Password",
+                        text: $viewModel.password,
+                        placeholder: "Min. 6 characters",
+                        icon: "lock",
+                        isSecure: true
+                    )
+
+                    roleSelector
+
+                    LPAVButton(
+                        title: "Create Account",
+                        isLoading: viewModel.isLoading
+                    ) {
+                        Task { await viewModel.signUp(authManager: authManager) }
+                    }
+
+                    if viewModel.requiresOnboarding {
+                        LPAVBadge(
+                            text: "You'll be asked about your preferences next",
+                            color: .lightBlue
+                        )
+                    }
+
+                    HStack {
+                        Text("Already have an account?")
+                            .foregroundColor(.lpavSecondaryText)
+                        Button("Sign In") {
+                            dismiss()
+                        }
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primaryGreen)
+                    }
+                    .font(.subheadline)
+                }
+                .padding(24)
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 20)
         }
-        .background(Color.brandBackground)
-        .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
-            Button("OK") { viewModel.errorMessage = nil }
+        .navigationBarBackButtonHidden(false)
+        .alert("Error", isPresented: $viewModel.showError) {
+            Button("OK") {}
         } message: {
-            Text(viewModel.errorMessage ?? "")
+            Text(viewModel.errorMessage ?? "An error occurred")
         }
     }
 
-    private var headerSection: some View {
-        VStack(spacing: 8) {
-            Text("Create Account")
-                .font(.largeTitle.bold())
-                .foregroundStyle(brandText)
-
-            Text("Join LPAV Market today")
+    private var roleSelector: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("I am a")
                 .font(.subheadline)
-                .foregroundStyle(brandSubtext)
-        }
-    }
+                .fontWeight(.medium)
+                .foregroundColor(.lpavSecondaryText)
 
-    private var formSection: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Image(systemName: "person")
-                    .foregroundStyle(brandSubtext)
-                TextField("Full Name", text: $viewModel.fullName)
-                    .textContentType(.name)
-            }
-            .padding()
-            .background(Color.brandCard)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(brandBorder, lineWidth: 1)
-            )
-
-            HStack {
-                Image(systemName: "envelope")
-                    .foregroundStyle(brandSubtext)
-                TextField("Email", text: $viewModel.email)
-                    .textContentType(.emailAddress)
-                    .autocapitalization(.none)
-                    .keyboardType(.emailAddress)
-            }
-            .padding()
-            .background(Color.brandCard)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(brandBorder, lineWidth: 1)
-            )
-
-            HStack {
-                Image(systemName: "lock")
-                    .foregroundStyle(brandSubtext)
-                SecureField("Password", text: $viewModel.password)
-                    .textContentType(.newPassword)
-            }
-            .padding()
-            .background(Color.brandCard)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(brandBorder, lineWidth: 1)
-            )
-
-            HStack {
-                Image(systemName: "lock.fill")
-                    .foregroundStyle(brandSubtext)
-                SecureField("Confirm Password", text: $viewModel.confirmPassword)
-                    .textContentType(.newPassword)
-            }
-            .padding()
-            .background(Color.brandCard)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(brandBorder, lineWidth: 1)
-            )
-
-            if !viewModel.password.isEmpty && viewModel.password != viewModel.confirmPassword {
-                Text("Passwords do not match")
-                    .font(.caption)
-                    .foregroundStyle(brandError)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 12) {
+                roleButton(title: "Traveler", icon: "airplane", role: "traveler")
+                roleButton(title: "Agency", icon: "building.2", role: "agency")
             }
         }
     }
 
-    private var accountTypeSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Account Type")
-                .font(.headline)
-                .foregroundStyle(brandText)
-
-            HStack(spacing: 16) {
-                accountTypeButton(
-                    title: "Traveler",
-                    icon: "figure.walk",
-                    isSelected: !viewModel.isAgency
-                ) {
-                    viewModel.isAgency = false
-                }
-
-                accountTypeButton(
-                    title: "Agency",
-                    icon: "building.2",
-                    isSelected: viewModel.isAgency
-                ) {
-                    viewModel.isAgency = true
-                }
-            }
-        }
-    }
-
-    private func accountTypeButton(title: String, icon: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
+    private func roleButton(title: String, icon: String, role: String) -> some View {
+        Button {
+            withAnimation { viewModel.selectedRole = role }
+        } label: {
+            VStack(spacing: 6) {
                 Image(systemName: icon)
                     .font(.title2)
                 Text(title)
-                    .font(.subheadline.bold())
+                    .font(.caption)
+                    .fontWeight(.medium)
             }
-            .foregroundStyle(isSelected ? .white : brandText)
             .frame(maxWidth: .infinity)
-            .frame(height: 80)
-            .background(isSelected ? brandPrimary : Color.brandCard)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padding(.vertical, 12)
+            .background(viewModel.selectedRole == role ? Color.primaryGreen.opacity(0.1) : Color.lpavSurface)
+            .foregroundColor(viewModel.selectedRole == role ? .primaryGreen : .lpavSecondaryText)
+            .cornerRadius(10)
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? brandPrimary : brandBorder, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(
+                        viewModel.selectedRole == role ? Color.primaryGreen : Color.clear,
+                        lineWidth: 1.5
+                    )
             )
         }
-    }
-
-    private var actionSection: some View {
-        VStack(spacing: 16) {
-            Button {
-                Task { await viewModel.signUp(authManager: authManager) }
-            } label: {
-                if viewModel.isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                } else {
-                    Text("Create Account")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                }
-            }
-            .background(brandPrimary)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .disabled(!viewModel.isValidRegister || viewModel.isLoading)
-        }
-    }
-
-    private var footerSection: some View {
-        HStack(spacing: 4) {
-            Text("Already have an account?")
-                .foregroundStyle(brandSubtext)
-            Button("Sign In") {
-                dismiss()
-            }
-            .foregroundStyle(brandPrimary)
-            .fontWeight(.semibold)
-        }
-        .font(.subheadline)
     }
 }

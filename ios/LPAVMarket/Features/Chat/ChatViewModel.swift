@@ -1,70 +1,198 @@
 import SwiftUI
+import Supabase
 
+@MainActor
 @Observable
 final class ChatViewModel {
+    var conversations: [ChatConversation] = []
     var messages: [ChatMessage] = []
-    var isLoading = false
-    var errorMessage: String?
     var newMessageText = ""
+    var isLoading = false
+    var isLoadingMessages = false
+    var isSending = false
+    var errorMessage: String?
+    var activeConversationId: String?
+
+    private var channel: RealtimeChannel?
+    private var messagesTask: Task<Void, Never>?
+
+    func loadConversations() async {
+        guard let userId = AuthManager.shared.currentUser?.profile.id else { return }
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            conversations = try await APIRouter.Chat.fetchConversations(userId: userId)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
 
     func loadMessages(conversationId: String) async {
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+        activeConversationId = conversationId
+        isLoadingMessages = true
+        defer { isLoadingMessages = false }
+
         do {
-            let response: [ChatMessage] = try await supabase
-                .from("chat_messages")
-                .select()
-                .eq("conversation_id", value: conversationId)
-                .order("created_at", ascending: true)
-                .limit(100)
-                .execute()
-                .value
-            messages = response
+            messages = try await APIRouter.Chat.fetchMessages(conversationId: conversationId)
+            messages.reverse()
         } catch {
             errorMessage = error.localizedDescription
         }
+
+        await subscribeToMessages(conversationId: conversationId)
     }
 
-    func sendMessage(conversationId: String, senderName: String) async {
-        let text = newMessageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        newMessageText = ""
+    func subscribeToMessages(conversationId: String) async {
+        messagesTask?.cancel()
+        channel?.unsubscribe()
 
         do {
-            let messageData: [String: AnyJSON] = [
-                "conversation_id": AnyJSON(conversationId),
-                "sender_id": AnyJSON(AuthManager.currentUserId),
-                "sender_name": AnyJSON(senderName),
-                "content": AnyJSON(text),
-                "message_type": AnyJSON("text")
-            ]
-            try await supabase
-                .from("chat_messages")
-                .insert(messageData)
-                .execute()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
+            let ch = try await APIRouter.Chat.subscribeToMessages(conversationId: conversationId)
 
-    func listenForMessages(conversationId: String) {
-        Task {
-            let channel = supabase.realtime.channel("chat-\(conversationId)")
-            let changes = channel.postgresChanges(
-                action: .insert,
-                schema: "public",
-                table: "chat_messages"
-            )
-            try await channel.subscribe()
-            for await change in changes {
-                if let record = change.record,
-                   let payload = try? JSONDecoder().decode(ChatMessage.self, from: JSONSerialization.data(withJSONObject: record)) {
-                    if !messages.contains(where: { $0.id == payload.id }) {
-                        messages.append(payload)
+            let stream = ch.postgresChanges(InsertAction.self, schema: "public", table: "messages")
+
+            channel = ch
+
+            messagesTask = Task {
+                for await change in stream {
+                    if let record = change.record,
+                       let messageId = record["message_id"] as? String,
+                       let conversationId = record["conversation_id"] as? String,
+                       conversationId == activeConversationId {
+                        let message = ChatMessage(
+                            messageId: messageId,
+                            conversationId: conversationId,
+                            senderId: record["sender_id"] as? String ?? "",
+                            messageText: record["message_text"] as? String ?? "",
+                            createdAt: record["created_at"] as? String,
+                            isSystem: record["is_system"] as? Bool,
+                            isCensored: record["is_censored"] as? Bool,
+                            censorshipReason: record["censorship_reason"] as? String,
+                            messageType: record["message_type"] as? String
+                        )
+                        await MainActor.run {
+                            self.messages.append(message)
+                        }
                     }
                 }
             }
+
+            try await channel?.subscribe()
+        } catch {
+            print("Failed to subscribe to messages: \(error)")
+        }
+    }
+
+    func sendMessage() async {
+        guard let conversationId = activeConversationId,
+              let userId = AuthManager.shared.currentUser?.profile.id,
+              !newMessageText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+
+        isSending = true
+        let message = ChatMessage(
+            conversationId: conversationId,
+            senderId: userId,
+            messageText: newMessageText
+        )
+
+        do {
+            let sent = try await APIRouter.Chat.sendMessage(message)
+            messages.append(sent)
+            newMessageText = ""
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isSending = false
+    }
+
+    func startConversation(tenantId: String, packageId: String) async -> String? {
+        guard let userId = AuthManager.shared.currentUser?.profile.id else { return nil }
+        do {
+            let response: [ChatConversation] = try await supabase.database
+                .from("conversations")
+                .insert([
+                    "traveler_user_id": userId,
+                    "tenant_id": tenantId,
+                    "package_id": packageId,
+                    "status": "active"
+                ])
+                .select()
+                .execute()
+                .value
+
+            if let conversation = response.first {
+                conversations.insert(conversation, at: 0)
+                return conversation.conversationId
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        return nil
+    }
+
+    func unsubscribe() {
+        messagesTask?.cancel()
+        channel?.unsubscribe()
+        channel = nil
+        activeConversationId = nil
+    }
+
+    func getSenderName(for senderId: String) -> String {
+        guard let userId = AuthManager.shared.currentUser?.profile.id else {
+            return senderId.truncatedAddress
+        }
+        if senderId == userId {
+            return AuthManager.shared.currentUser?.profile.fullName ?? "You"
+        }
+        if senderId == "ai_assistant" {
+            return "AI Assistant"
+        }
+        return senderId.truncatedAddress
+    }
+}
+
+protocol InsertAction: PostgresAction {
+    associatedtype Record
+    var record: [String: AnyJSON]? { get }
+}
+
+enum AnyJSON: Codable, Sendable {
+    case string(String)
+    case number(Double)
+    case bool(Bool)
+    case null
+    case object([String: AnyJSON])
+    case array([AnyJSON])
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let string = try? container.decode(String.self) {
+            self = .string(string)
+        } else if let number = try? container.decode(Double.self) {
+            self = .number(number)
+        } else if let bool = try? container.decode(Bool.self) {
+            self = .bool(bool)
+        } else if container.decodeNil() {
+            self = .null
+        } else if let object = try? container.decode([String: AnyJSON].self) {
+            self = .object(object)
+        } else if let array = try? container.decode([AnyJSON].self) {
+            self = .array(array)
+        } else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unknown JSON type")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .string(let value): try container.encode(value)
+        case .number(let value): try container.encode(value)
+        case .bool(let value): try container.encode(value)
+        case .null: try container.encodeNil()
+        case .object(let value): try container.encode(value)
+        case .array(let value): try container.encode(value)
         }
     }
 }

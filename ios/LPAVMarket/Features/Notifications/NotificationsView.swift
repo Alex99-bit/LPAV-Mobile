@@ -1,22 +1,32 @@
 import SwiftUI
 
 struct NotificationsView: View {
-    @State private var viewModel = NotificationsViewModel()
+    @State private var notifications: [AppNotification] = []
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+
+    var unreadCount: Int {
+        notifications.filter { $0.read != true }.count
+    }
 
     var body: some View {
         NavigationStack {
             Group {
-                if viewModel.isLoading && viewModel.notifications.isEmpty {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let error = viewModel.errorMessage, viewModel.notifications.isEmpty {
-                    ErrorView(message: error) {
-                        Task { await viewModel.loadNotifications() }
+                if isLoading && notifications.isEmpty {
+                    LPAVLoadingView(message: "Loading notifications...")
+                } else if let error = errorMessage, notifications.isEmpty {
+                    LPAVEmptyState(
+                        icon: "exclamationmark.triangle",
+                        title: "Error",
+                        message: error,
+                        actionTitle: "Retry"
+                    ) {
+                        Task { await loadNotifications() }
                     }
-                } else if viewModel.notifications.isEmpty {
-                    EmptyStateView(
+                } else if notifications.isEmpty {
+                    LPAVEmptyState(
                         icon: "bell",
-                        title: "No notifications",
+                        title: "No Notifications",
                         message: "You're all caught up!"
                     )
                 } else {
@@ -25,21 +35,21 @@ struct NotificationsView: View {
             }
             .navigationTitle("Notifications")
             .toolbar {
-                if viewModel.unreadCount > 0 {
+                if unreadCount > 0 {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Mark All Read") {
-                            Task { await viewModel.markAllAsRead() }
+                            Task { await markAllAsRead() }
                         }
                         .font(.caption)
-                        .foregroundStyle(brandPrimary)
+                        .foregroundColor(.primaryGreen)
                     }
                 }
             }
             .refreshable {
-                await viewModel.loadNotifications()
+                await loadNotifications()
             }
             .task {
-                await viewModel.loadNotifications()
+                await loadNotifications()
             }
         }
     }
@@ -47,7 +57,7 @@ struct NotificationsView: View {
     private var notificationsList: some View {
         ScrollView {
             LazyVStack(spacing: 8) {
-                ForEach(viewModel.notifications) { notification in
+                ForEach(notifications) { notification in
                     notificationRow(notification: notification)
                 }
             }
@@ -57,73 +67,95 @@ struct NotificationsView: View {
 
     private func notificationRow(notification: AppNotification) -> some View {
         Button {
-            Task { await viewModel.markAsRead(notificationId: notification.id) }
+            Task { await markAsRead(notificationId: notification.id) }
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: iconForType(notification.type))
+                Image(systemName: notification.iconName)
                     .font(.title3)
-                    .foregroundStyle(colorForType(notification.type))
+                    .foregroundColor(.lpavText)
                     .frame(width: 40, height: 40)
-                    .background(colorForType(notification.type).opacity(0.1))
+                    .background(Color.lpavSurface)
                     .clipShape(Circle())
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(notification.title)
-                        .font(.subheadline.bold())
-                        .foregroundStyle(brandText)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.lpavText)
                         .multilineTextAlignment(.leading)
 
                     Text(notification.message)
                         .font(.caption)
-                        .foregroundStyle(brandSubtext)
+                        .foregroundColor(.lpavSecondaryText)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
-                    Text(notification.formattedDate)
-                        .font(.caption2)
-                        .foregroundStyle(brandSubtext)
+                    if let createdAt = notification.createdAt {
+                        Text(createdAt.toDateFromISO()?.timeAgo ?? "")
+                            .font(.caption2)
+                            .foregroundColor(.lpavSecondaryText)
+                    }
                 }
 
                 Spacer()
 
-                if !notification.isRead {
+                if notification.read != true {
                     Circle()
-                        .fill(brandPrimary)
+                        .fill(Color.primaryGreen)
                         .frame(width: 8, height: 8)
                 }
             }
             .padding(12)
-            .background(notification.isRead ? Color.brandCard : brandPrimary.opacity(0.04))
+            .background(notification.read == true ? Color.lpavCard : Color.primaryGreen.opacity(0.04))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(notification.isRead ? brandBorder : brandPrimary.opacity(0.2), lineWidth: 1)
+                    .stroke(notification.read == true ? Color.lpavSurface : Color.primaryGreen.opacity(0.2), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
     }
 
-    private func iconForType(_ type: NotificationType) -> String {
-        switch type {
-        case .orderUpdate: return "bag.fill"
-        case .paymentReceived: return "checkmark.circle.fill"
-        case .paymentDue: return "exclamationmark.circle.fill"
-        case .chatMessage: return "bubble.left.fill"
-        case .packageUpdate: return "arrow.triangle.2.circlepath"
-        case .promotion: return "sparkles"
-        case .system: return "info.circle.fill"
+    private func loadNotifications() async {
+        guard let userId = AuthManager.shared.currentUser?.profile.id else { return }
+        isLoading = true
+        do {
+            notifications = try await APIRouter.Notifications.fetchAll(userId: userId)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    private func markAsRead(notificationId: String) async {
+        do {
+            try await APIRouter.Notifications.markAsRead(notificationId: notificationId)
+            if let index = notifications.firstIndex(where: { $0.id == notificationId }) {
+                notifications[index] = AppNotification(
+                    notificationId: notifications[index].notificationId,
+                    userId: notifications[index].userId,
+                    type: notifications[index].type,
+                    title: notifications[index].title,
+                    message: notifications[index].message,
+                    metadata: notifications[index].metadata,
+                    read: true,
+                    createdAt: notifications[index].createdAt
+                )
+            }
+        } catch {
+            print("Failed to mark as read: \(error)")
         }
     }
 
-    private func colorForType(_ type: NotificationType) -> Color {
-        switch type {
-        case .orderUpdate: return brandPrimary
-        case .paymentReceived: return brandSuccess
-        case .paymentDue: return brandAccent
-        case .chatMessage: return .purple
-        case .packageUpdate: return brandPrimary
-        case .promotion: return brandAccent
-        case .system: return .gray
+    private func markAllAsRead() async {
+        guard let userId = AuthManager.shared.currentUser?.profile.id else { return }
+        do {
+            for notification in notifications where notification.read != true {
+                try await APIRouter.Notifications.markAsRead(notificationId: notification.id)
+            }
+            notifications = try await APIRouter.Notifications.fetchAll(userId: userId)
+        } catch {
+            print("Failed to mark all as read: \(error)")
         }
     }
 }

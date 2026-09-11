@@ -1,100 +1,127 @@
 import SwiftUI
 
+@MainActor
 @Observable
 final class CheckoutViewModel {
-    var walletBalance: Int = 0
-    var pointsToRedeem: Int = 0
+    var cartPackages: [TravelPackage] = []
     var isLoading = false
     var isProcessingPayment = false
-    var paymentSuccess = false
     var errorMessage: String?
+    var stripeURL: URL?
+    var appliedPoints = 0
+    var pointsDiscount: Double = 0
+    var wallet: UserWallet?
 
-    var subtotal: Double = 0
-    var ivaRate: Double = 0.16
-
-    var ivaAmount: Double {
-        subtotal * ivaRate
+    var packageIds: [String] {
+        CartManager.shared.packageIds
     }
 
-    var totalWithIva: Double {
-        subtotal + ivaAmount
-    }
+    func loadCartPackages() async {
+        guard !packageIds.isEmpty else {
+            cartPackages = []
+            return
+        }
+        isLoading = true
+        defer { isLoading = false }
 
-    var pointsValueMxn: Double {
-        Double(pointsToRedeem) * 0.10
-    }
-
-    var depositAmount: Double {
-        totalWithIva * 0.30
-    }
-
-    var totalToPay: Double {
-        max(depositAmount - pointsValueMxn, 0)
-    }
-
-    var formattedSubtotal: String {
-        "$\(Int(subtotal).formatted()) MXN"
-    }
-
-    var formattedIva: String {
-        "$\(Int(ivaAmount).formatted()) MXN"
-    }
-
-    var formattedTotal: String {
-        "$\(Int(totalWithIva).formatted()) MXN"
-    }
-
-    var formattedDeposit: String {
-        "$\(Int(depositAmount).formatted()) MXN"
-    }
-
-    var formattedToPay: String {
-        "$\(Int(totalToPay).formatted()) MXN"
+        var loaded: [TravelPackage] = []
+        for id in packageIds {
+            if let package = try? await APIRouter.Packages.fetchPackage(packageId: id) {
+                loaded.append(package)
+            }
+        }
+        cartPackages = loaded
     }
 
     func loadWallet() async {
-        guard let userId = AuthManager.currentUserId.isEmpty ? nil : AuthManager.currentUserId else { return }
+        guard let userId = AuthManager.shared.currentUser?.profile.id else { return }
         do {
-            let response: [UserWallet] = try await supabase
-                .from("wallets")
-                .select()
-                .eq("user_id", value: userId)
-                .execute()
-                .value
-            walletBalance = response.first?.balance ?? 0
+            wallet = try await APIRouter.Wallet.fetchWallet(userId: userId)
         } catch {
-            walletBalance = 0
+            print("Failed to load wallet: \(error)")
         }
     }
 
-    func processPayment(items: [CartItem]) async {
+    var subtotal: Double {
+        cartPackages.reduce(0) { $0 + $1.price }
+    }
+
+    var platformFee: Double {
+        subtotal * 0.05
+    }
+
+    var total: Double {
+        max(0, subtotal + platformFee - pointsDiscount)
+    }
+
+    var currency: String {
+        cartPackages.first?.currency ?? "MXN"
+    }
+
+    func applyPoints(_ points: Int) {
+        guard let wallet, points <= wallet.pointsBalance else { return }
+        appliedPoints = points
+        pointsDiscount = Double(points) * 0.01
+    }
+
+    func clearPoints() {
+        appliedPoints = 0
+        pointsDiscount = 0
+    }
+
+    var maxRedeemablePoints: Int {
+        guard let wallet else { return 0 }
+        let maxDiscount = subtotal * 0.3
+        let maxPoints = Int(maxDiscount / 0.01)
+        return min(wallet.pointsBalance, maxPoints)
+    }
+
+    func createCheckout() async {
         isProcessingPayment = true
-        errorMessage = nil
         defer { isProcessingPayment = false }
 
         do {
-            for item in items {
-                let orderData: [String: AnyJSON] = [
-                    "user_id": AnyJSON(AuthManager.currentUserId),
-                    "package_id": AnyJSON(item.packageId),
-                    "total_amount_mxn": AnyJSON(subtotal),
-                    "deposit_amount_mxn": AnyJSON(depositAmount),
-                    "points_used": AnyJSON(pointsToRedeem),
-                    "points_value_mxn": AnyJSON(pointsValueMxn),
-                    "iva_amount": AnyJSON(ivaAmount),
-                    "total_with_iva": AnyJSON(totalWithIva),
-                    "payment_status": AnyJSON("pending"),
-                    "installment_plan": AnyJSON(false)
-                ]
-                try await supabase
-                    .from("transaction_orders")
-                    .insert(orderData)
-                    .execute()
+            let successUrl = "lpavmarket://checkout/success"
+            let cancelUrl = "lpavmarket://checkout/cancel"
+
+            let response = try await EdgeFunction.Functions.createCheckoutSession(
+                packageIds: packageIds,
+                successUrl: successUrl,
+                cancelUrl: cancelUrl
+            )
+
+            if let urlString = response.url, let url = URL(string: urlString) {
+                stripeURL = url
             }
-            CartStorage.shared.clear()
-            paymentSuccess = true
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func removePackage(_ packageId: String) {
+        CartManager.shared.removePackage(packageId)
+        cartPackages.removeAll { $0.packageId == packageId }
+    }
+
+    func completeOrder() async -> TransactionOrder? {
+        guard let userId = AuthManager.shared.currentUser?.profile.id else { return nil }
+        let order = TransactionOrder(
+            userId: userId,
+            totalAmount: total,
+            currency: currency,
+            pointsRedeemed: appliedPoints > 0 ? appliedPoints : nil,
+            discountApplied: pointsDiscount > 0 ? pointsDiscount : nil
+        )
+        do {
+            let created = try await APIRouter.Orders.create(order: order)
+            CartManager.shared.clear()
+            cartPackages.removeAll()
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+            return created
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
         }
     }
 }

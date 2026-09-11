@@ -2,106 +2,91 @@ import SwiftUI
 
 struct PackageDetailView: View {
     let packageId: String
-    @State private var viewModel = PackageDetailViewModel()
-    @Environment(AuthManager.self) private var authManager
+    @State private var package: TravelPackage?
+    @State private var reviews: [PackageReview] = []
+    @State private var agency: AgencyTenant?
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+    @State private var isGeneratingItinerary = false
+    @State private var itinerary: String?
+    @State private var addedToCart = false
     @State private var showChat = false
-    @State private var isLoading = false
+    @State private var isCreatingLead = false
+    @Environment(AuthManager.self) private var authManager
 
     var body: some View {
         ScrollView {
-            if viewModel.isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 100)
-            } else if let package = viewModel.package {
+            if isLoading {
+                LPAVLoadingView(message: "Loading package...")
+            } else if let package {
                 VStack(alignment: .leading, spacing: 0) {
                     heroSection(package: package)
-                    infoSection(package: package)
                     descriptionSection(package: package)
-                    agencySection
-                    if !viewModel.reviews.isEmpty {
-                        reviewsSection
-                    }
                     actionButtonsSection
                 }
-            }
-        }
-        .navigationTitle("Package Detail")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                if let package = viewModel.package {
-                    ShareLink(item: URL(string: "https://lpavmarket.com/package/\(package.slug)") ?? URL(string: "https://lpavmarket.com")!) {
-                        Image(systemName: "square.and.arrow.up")
-                    }
+            } else if let error = errorMessage {
+                LPAVEmptyState(
+                    icon: "exclamationmark.triangle",
+                    title: "Error",
+                    message: error,
+                    actionTitle: "Retry"
+                ) {
+                    Task { await loadPackage() }
                 }
             }
         }
-        .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
-            Button("OK") { viewModel.errorMessage = nil }
-        } message: {
-            Text(viewModel.errorMessage ?? "")
-        }
+        .background(Color.lpavBackground)
+        .navigationTitle("Package Detail")
+        .navigationBarTitleDisplayMode(.inline)
         .task {
-            await viewModel.loadPackage(packageId: packageId)
+            await loadPackage()
         }
     }
 
     private func heroSection(package: TravelPackage) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            AsyncImageView(
-                url: package.coverImageUrl,
-                width: nil,
-                height: 250
-            )
-            .frame(height: 250)
-            .clipped()
+            AsyncImageView(url: package.urlThumbnailStorage, placeholder: "airplane.departure", aspectRatio: 4/3)
+                .frame(height: 250)
+                .clipped()
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(package.title)
-                    .font(.title2.bold())
-                    .foregroundStyle(brandText)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.lpavText)
 
                 HStack(spacing: 12) {
                     Label(package.region, systemImage: "mappin.circle.fill")
-                    Label(package.durationText, systemImage: "clock")
-                    Label(package.departureCity, systemImage: "airplane.departure")
+                    if let duration = package.duration {
+                        Label(duration, systemImage: "clock")
+                    }
                 }
                 .font(.caption)
-                .foregroundStyle(brandSubtext)
+                .foregroundColor(.lpavSecondaryText)
 
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(package.formattedPrice)
-                        .font(.title.bold())
-                        .foregroundStyle(brandPrimary)
+                    Text(package.price.formattedCurrency(package.currency))
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primaryGreen)
 
-                    if package.hasDiscount, let original = package.originalPriceMxn {
-                        Text("$\(Int(original).formatted())")
-                            .font(.subheadline)
-                            .strikethrough()
-                            .foregroundStyle(brandSubtext)
-
-                        Text("-\(Int(package.discountPercentage))%")
-                            .font(.caption.bold())
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(brandError)
-                            .clipShape(Capsule())
+                    if let guests = package.maxGuests {
+                        Text("Max \(guests) guests")
+                            .font(.caption)
+                            .foregroundColor(.lpavSecondaryText)
                     }
 
                     Spacer()
+                }
 
-                    if let rating = package.rating {
-                        HStack(spacing: 4) {
-                            Image(systemName: "star.fill")
-                                .foregroundStyle(.yellow)
-                            Text(String(format: "%.1f", rating))
-                                .font(.subheadline.bold())
-                            Text("(\(package.reviewCount))")
-                                .font(.caption)
-                                .foregroundStyle(brandSubtext)
-                        }
+                if let departureDate = package.departureDate {
+                    HStack {
+                        Image(systemName: "calendar")
+                            .font(.caption)
+                            .foregroundColor(.primaryGreen)
+                        Text(departureDate)
+                            .font(.subheadline)
+                            .foregroundColor(.lpavText)
                     }
                 }
             }
@@ -110,208 +95,48 @@ struct PackageDetailView: View {
         }
     }
 
-    private func infoSection(package: TravelPackage) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 16) {
-                infoBadge(icon: "calendar", title: "Departure", value: formatDate(package.departureDate))
-                infoBadge(icon: "calendar.badge.clock", title: "Return", value: formatDate(package.returnDate))
-            }
-
-            HStack(spacing: 16) {
-                infoBadge(icon: "person.2", title: "Group Size", value: "Max \(package.maxGroupSize)")
-                infoBadge(icon: "ticket", title: "Available", value: "\(package.availableSpots) spots")
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-    }
-
-    private func infoBadge(icon: String, title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(brandSubtext)
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.caption)
-                    .foregroundStyle(brandPrimary)
-                Text(value)
-                    .font(.subheadline.bold())
-                    .foregroundStyle(brandText)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(brandPrimary.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
     private func descriptionSection(package: TravelPackage) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             if let description = package.description {
                 Text("About this package")
                     .font(.headline)
-                    .foregroundStyle(brandText)
+                    .foregroundColor(.lpavText)
                 Text(description)
                     .font(.subheadline)
-                    .foregroundStyle(brandSubtext)
+                    .foregroundColor(.lpavSecondaryText)
                     .lineSpacing(4)
             }
 
-            if let included = package.includedItems, !included.isEmpty {
+            if let includes = package.includes, !includes.isEmpty {
                 Text("What's included")
                     .font(.headline)
-                    .foregroundStyle(brandText)
-                ForEach(included, id: \.self) { item in
+                    .foregroundColor(.lpavText)
+                ForEach(includes, id: \.self) { item in
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(brandSuccess)
+                            .foregroundColor(.primaryGreen)
                             .font(.caption)
                         Text(item)
                             .font(.subheadline)
-                            .foregroundStyle(brandText)
+                            .foregroundColor(.lpavText)
                     }
                 }
             }
 
-            if let excluded = package.excludedItems, !excluded.isEmpty {
+            if let excludes = package.excludes, !excludes.isEmpty {
                 Text("Not included")
                     .font(.headline)
-                    .foregroundStyle(brandText)
-                ForEach(excluded, id: \.self) { item in
+                    .foregroundColor(.lpavText)
+                ForEach(excludes, id: \.self) { item in
                     HStack(spacing: 8) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(brandError)
+                            .foregroundColor(.red)
                             .font(.caption)
                         Text(item)
                             .font(.subheadline)
-                            .foregroundStyle(brandText)
+                            .foregroundColor(.lpavText)
                     }
                 }
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-    }
-
-    private var agencySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let agency = viewModel.agency {
-                Text("Operated by")
-                    .font(.headline)
-                    .foregroundStyle(brandText)
-
-                NavigationLink(value: AgencyRoute(id: agency.id)) {
-                    HStack(spacing: 12) {
-                        AsyncImageView(
-                            url: agency.logoUrl,
-                            width: 48,
-                            height: 48
-                        )
-                        .clipShape(Circle())
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 4) {
-                                Text(agency.name)
-                                    .font(.subheadline.bold())
-                                    .foregroundStyle(brandText)
-                                if agency.isVerified {
-                                    Image(systemName: "checkmark.seal.fill")
-                                        .foregroundStyle(brandPrimary)
-                                        .font(.caption)
-                                }
-                            }
-                            if let description = agency.description {
-                                Text(description)
-                                    .font(.caption)
-                                    .foregroundStyle(brandSubtext)
-                                    .lineLimit(2)
-                            }
-                        }
-
-                        Spacer()
-
-                        if let rating = agency.rating {
-                            HStack(spacing: 2) {
-                                Image(systemName: "star.fill")
-                                    .foregroundStyle(.yellow)
-                                    .font(.caption)
-                                Text(String(format: "%.1f", rating))
-                                    .font(.caption.bold())
-                            }
-                        }
-
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(brandSubtext)
-                    }
-                    .padding(12)
-                    .background(Color.brandCard)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(brandBorder, lineWidth: 1)
-                    )
-                }
-                .navigationDestination(for: AgencyRoute.self) { route in
-                    AgencyProfileView(agencyId: route.id)
-                        .environment(authManager)
-                }
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-    }
-
-    private var reviewsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Reviews (\(viewModel.reviews.count))")
-                .font(.headline)
-                .foregroundStyle(brandText)
-
-            ForEach(viewModel.reviews) { review in
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        AsyncImageView(
-                            url: review.userAvatarUrl,
-                            width: 32,
-                            height: 32
-                        )
-                        .clipShape(Circle())
-
-                        VStack(alignment: .leading) {
-                            Text(review.userName ?? "Anonymous")
-                                .font(.subheadline.bold())
-                                .foregroundStyle(brandText)
-                            Text(review.formattedDate)
-                                .font(.caption)
-                                .foregroundStyle(brandSubtext)
-                        }
-
-                        Spacer()
-
-                        HStack(spacing: 2) {
-                            ForEach(review.stars, id: \.self) { filled in
-                                Image(systemName: filled ? "star.fill" : "star")
-                                    .foregroundStyle(filled ? .yellow : brandBorder)
-                                    .font(.caption)
-                            }
-                        }
-                    }
-
-                    if let comment = review.comment {
-                        Text(comment)
-                            .font(.subheadline)
-                            .foregroundStyle(brandText)
-                    }
-                }
-                .padding(12)
-                .background(Color.brandCard)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(brandBorder, lineWidth: 1)
-                )
             }
         }
         .padding(.horizontal, 16)
@@ -320,113 +145,133 @@ struct PackageDetailView: View {
 
     private var actionButtonsSection: some View {
         VStack(spacing: 12) {
-            if let itinerary = viewModel.itinerary {
+            if let itinerary {
                 NavigationLink {
                     ItineraryView(content: itinerary)
                 } label: {
                     Label("View Generated Itinerary", systemImage: "map")
                         .font(.headline)
-                        .foregroundStyle(.white)
+                        .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
-                        .background(brandSecondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .background(Color.darkGreen)
+                        .cornerRadius(12)
                 }
             } else {
                 Button {
-                    Task { await viewModel.generateItinerary() }
+                    Task { await generateItinerary() }
                 } label: {
-                    if viewModel.isGeneratingItinerary {
+                    if isGeneratingItinerary {
                         HStack {
                             ProgressView()
                                 .tint(.white)
                             Text("Generating...")
                         }
                         .font(.headline)
-                        .foregroundStyle(.white)
+                        .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
-                        .background(brandSecondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .background(Color.darkGreen)
+                        .cornerRadius(12)
                     } else {
                         Label("Generate Itinerary", systemImage: "sparkles")
                             .font(.headline)
-                            .foregroundStyle(.white)
+                            .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 50)
-                            .background(brandSecondary)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .background(Color.darkGreen)
+                            .cornerRadius(12)
                     }
                 }
             }
 
             Button {
-                Task {
-                    isLoading = true
-                    do {
-                        let response: CreateLeadResponse = try await supabase.functions
-                            .invoke("create-lead", body: ["package_id": packageId])
-                        showChat = true
-                    } catch {
-                        viewModel.errorMessage = error.localizedDescription
-                    }
-                    isLoading = false
-                }
-            } label: {
-                if isLoading {
-                    HStack {
-                        ProgressView()
-                            .tint(brandPrimary)
-                        Text("Connecting...")
-                    }
-                    .font(.headline)
-                    .foregroundStyle(brandPrimary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(brandPrimary.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                } else {
-                    Label("Request Info", systemImage: "bubble.left.and.bubble.right")
-                        .font(.headline)
-                        .foregroundStyle(brandPrimary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(brandPrimary.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-            }
-            .disabled(isLoading)
-            .navigationDestination(isPresented: $showChat) {
-                if let agency = viewModel.agency {
-                    ChatView(conversationId: agency.id, recipientName: agency.name)
-                        .environment(authManager)
-                }
-            }
-
-            Button {
-                viewModel.addToCart()
+                addedToCart = true
+                CartManager.shared.addPackage(packageId)
             } label: {
                 Label(
-                    viewModel.addedToCart ? "Added to Cart" : "Add to Cart",
-                    systemImage: viewModel.addedToCart ? "checkmark.cart.fill" : "cart.badge.plus"
+                    addedToCart ? "Added to Cart" : "Add to Cart",
+                    systemImage: addedToCart ? "checkmark.cart.fill" : "cart.badge.plus"
                 )
                 .font(.headline)
-                .foregroundStyle(.white)
+                .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 50)
-                .background(viewModel.addedToCart ? brandSuccess : brandPrimary)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .background(addedToCart ? Color.primaryGreen : Color.primaryGreen)
+                .cornerRadius(12)
             }
-            .disabled(viewModel.addedToCart)
+            .disabled(addedToCart)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
     }
 
-    private func formatDate(_ date: Date?) -> String {
-        guard let date else { return "TBD" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy"
-        return formatter.string(from: date)
+    private func loadPackage() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            let response: [TravelPackage] = try await supabase.database
+                .from("packages")
+                .select()
+                .eq("package_id", value: packageId)
+                .execute()
+                .value
+            package = response.first
+
+            if let package {
+                let reviewResponse: [PackageReview] = try await supabase.database
+                    .from("reviews")
+                    .select()
+                    .eq("package_id", value: package.packageId)
+                    .order("created_at", ascending: false)
+                    .execute()
+                    .value
+                reviews = reviewResponse
+
+                if let tenantId = package.tenantId {
+                    let agencyResponse: [AgencyTenant] = try await supabase.database
+                        .from("tenants")
+                        .select()
+                        .eq("id", value: tenantId)
+                        .execute()
+                        .value
+                    agency = agencyResponse.first
+                }
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func generateItinerary() async {
+        isGeneratingItinerary = true
+        defer { isGeneratingItinerary = false }
+        do {
+            let response: ItineraryResponse = try await EdgeFunction.invokeDecodable(
+                function: "generate-itinerary",
+                body: ["package_id": packageId]
+            )
+            itinerary = response.summary
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+struct ItineraryView: View {
+    let content: String
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(content)
+                    .font(.body)
+                    .foregroundColor(.lpavText)
+                    .lineSpacing(4)
+            }
+            .padding()
+        }
+        .navigationTitle("AI Itinerary")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 @Observable
 final class WalletViewModel {
     var wallet: UserWallet?
@@ -7,61 +8,52 @@ final class WalletViewModel {
     var isLoading = false
     var errorMessage: String?
 
-    var balance: Int {
-        wallet?.balance ?? 0
-    }
-
-    var formattedBalance: String {
-        "\(balance.formatted()) pts"
-    }
-
-    var estimatedMxn: String {
-        "$\(Int(wallet?.estimatedMxnValue ?? 0).formatted()) MXN"
-    }
-
     func loadWallet() async {
+        guard let userId = AuthManager.shared.currentUser?.profile.id else { return }
         isLoading = true
-        errorMessage = nil
         defer { isLoading = false }
-        do {
-            let userId = AuthManager.currentUserId
-            let walletResponse: [UserWallet] = try await supabase
-                .from("wallets")
-                .select()
-                .eq("user_id", value: userId)
-                .execute()
-                .value
-            wallet = walletResponse.first
 
-            if let walletId = wallet?.id {
-                let txResponse: [WalletTransaction] = try await supabase
-                    .from("wallet_transactions")
-                    .select()
-                    .eq("wallet_id", value: walletId)
-                    .order("created_at", ascending: false)
-                    .limit(50)
-                    .execute()
-                    .value
-                transactions = txResponse
-            }
+        do {
+            wallet = try await APIRouter.Wallet.fetchWallet(userId: userId)
+            transactions = try await APIRouter.Wallet.fetchPointsHistory(userId: userId)
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    func listenForUpdates() {
-        Task {
-            let channel = supabase.realtime.channel("wallet-changes")
-            let changes = channel.postgresChanges(
-                action: .all,
-                schema: "public",
-                table: "wallet_transactions"
-            )
-            try await channel.subscribe()
-            for await change in changes {
-                _ = change
-                await loadWallet()
-            }
+    func redeemPoints(_ points: Int) async {
+        guard let userId = AuthManager.shared.currentUser?.profile.id else { return }
+        do {
+            wallet = try await APIRouter.Wallet.redeemPoints(userId: userId, points: points)
+            transactions = try await APIRouter.Wallet.fetchPointsHistory(userId: userId)
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+        } catch {
+            errorMessage = error.localizedDescription
         }
+    }
+
+    var pointsBalance: Int {
+        wallet?.pointsBalance ?? 0
+    }
+
+    var pointsValue: Double {
+        wallet?.pointsValue ?? 0
+    }
+
+    var tier: String {
+        wallet?.tierDisplay ?? "Standard"
+    }
+
+    var tierColor: String {
+        wallet?.tierColor ?? "blue"
+    }
+
+    var lifetimePoints: Int {
+        wallet?.lifetimePoints ?? 0
+    }
+
+    var formattedBalance: String {
+        pointsBalance.formattedPoints()
     }
 }

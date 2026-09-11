@@ -18,7 +18,7 @@ struct MessageBubbleView: View {
 
                 Text(message.formattedTime)
                     .font(.caption2)
-                    .foregroundStyle(brandSubtext)
+                    .foregroundStyle(.lpavSecondaryText)
                     .padding(.horizontal, 4)
             }
 
@@ -31,14 +31,14 @@ struct MessageBubbleView: View {
     private var textBubble: some View {
         Text(message.content)
             .font(.subheadline)
-            .foregroundStyle(message.isSentByMe ? .white : brandText)
+            .foregroundStyle(message.isSentByMe ? .white : .lpavText)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(message.isSentByMe ? brandPrimary : Color.brandCard)
+            .background(message.isSentByMe ? .primaryGreen : Color.lpavCard)
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(message.isSentByMe ? Color.clear : brandBorder, lineWidth: 1)
+                    .stroke(message.isSentByMe ? Color.clear : .lpavSurface, lineWidth: 1)
             )
     }
 
@@ -46,21 +46,21 @@ struct MessageBubbleView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Image(systemName: "creditcard.fill")
-                    .foregroundStyle(brandAccent)
+                    .foregroundStyle(.primaryGreen)
                 Text("Payment Request")
                     .font(.caption.bold())
-                    .foregroundStyle(brandAccent)
+                    .foregroundStyle(.primaryGreen)
             }
 
             Text(message.content)
                 .font(.subheadline)
-                .foregroundStyle(brandText)
+                .foregroundStyle(.lpavText)
 
             if let amount = message.paymentAmount {
                 HStack {
                     Text("$\(Int(amount).formatted()) MXN")
                         .font(.headline.bold())
-                        .foregroundStyle(brandPrimary)
+                        .foregroundStyle(.primaryGreen)
 
                     Spacer()
 
@@ -70,18 +70,18 @@ struct MessageBubbleView: View {
                             .foregroundStyle(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(status == "completed" ? brandSuccess : brandAccent)
+                            .background(status == "completed" ? .primaryGreen : .primaryGreen)
                             .clipShape(Capsule())
                     }
                 }
             }
         }
         .padding(12)
-        .background(brandAccent.opacity(0.08))
+        .background(.primaryGreen.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(brandAccent.opacity(0.3), lineWidth: 1)
+                .stroke(.primaryGreen.opacity(0.3), lineWidth: 1)
         )
     }
 }

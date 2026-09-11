@@ -26,6 +26,6 @@ struct ContentView: View {
                 ProfileView()
             }
         }
-        .tint(brandPrimary)
+        .tint(.primaryGreen)
     }
 }
