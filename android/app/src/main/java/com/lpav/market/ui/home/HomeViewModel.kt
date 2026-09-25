@@ -45,7 +45,7 @@ class HomeViewModel @Inject constructor(
             try {
                 val packages = SupabaseModule.client.from("travel_packages")
                     .select {
-                        filter { eq("status", "active") }
+                        filter { eq("publication_status", "published") }
                     }
                     .decodeList<TravelPackage>()
                 _uiState.value = _uiState.value.copy(
@@ -101,25 +101,25 @@ class HomeViewModel @Inject constructor(
             val query = state.searchQuery.lowercase()
             filtered = filtered.filter {
                 it.title.lowercase().contains(query) ||
-                    it.destination.lowercase().contains(query) ||
-                    it.description.lowercase().contains(query)
+                    it.region.lowercase().contains(query) ||
+                    (it.description?.lowercase()?.contains(query) == true)
             }
         }
 
         state.selectedCountry?.let { country ->
-            filtered = filtered.filter { it.country.equals(country, ignoreCase = true) }
+            filtered = filtered.filter { it.region.equals(country, ignoreCase = true) }
         }
 
         state.minPrice?.let { min ->
-            filtered = filtered.filter { it.basePrice >= min }
+            filtered = filtered.filter { it.price >= min }
         }
 
         state.maxPrice?.let { max ->
-            filtered = filtered.filter { it.basePrice <= max }
+            filtered = filtered.filter { it.price <= max }
         }
 
         if (state.featuredOnly) {
-            filtered = filtered.filter { it.featured }
+            filtered = filtered.filter { it.publicationStatus == "published" }
         }
 
         _uiState.value = _uiState.value.copy(filteredPackages = filtered)

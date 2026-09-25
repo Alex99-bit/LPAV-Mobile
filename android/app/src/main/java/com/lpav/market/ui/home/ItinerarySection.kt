@@ -47,7 +47,8 @@ fun ItinerarySection(
     val parsedDays = remember(itineraryJson) {
         try {
             val gson = com.google.gson.Gson()
-            val items = gson.fromJson(itineraryJson, Array<Map<String, Any>>::class.java)
+            val type = object : com.google.gson.reflect.TypeToken<Array<Map<String, Any>>>() {}.type
+            val items: Array<Map<String, Any>>? = gson.fromJson(itineraryJson, type)
             items?.mapNotNull { item ->
                 ItineraryDay(
                     day = (item["day"] as? Double)?.toInt() ?: 0,

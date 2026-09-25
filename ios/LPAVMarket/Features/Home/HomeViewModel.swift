@@ -131,24 +131,8 @@ final class HomeViewModel {
     }
 
     func searchWithGemini(_ query: String) async {
-        isGeminiSearching = true
-        defer { isGeminiSearching = false }
-
-        do {
-            let response = try await EdgeFunction.Functions.searchWithGemini(
-                query: query,
-                context: [
-                    "selected_region": selectedRegion as Any,
-                    "price_min": minPrice as Any,
-                    "price_max": maxPrice as Any
-                ]
-            )
-            geminiSuggestions = response.suggestions ?? []
-            searchQuery = query
-            await loadPackages()
-        } catch {
-            searchError = error.localizedDescription
-        }
+        searchQuery = query
+        await loadPackages()
     }
 
     func clearFilters() {

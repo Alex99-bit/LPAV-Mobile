@@ -36,3 +36,6 @@ val Slate950 = Color(0xFF020617)
 val DarkBackground = Color(0xFF0F172A)
 val DarkSurface = Color(0xFF1E293B)
 val DarkSurfaceVariant = Color(0xFF334155)
+
+val PrimaryBlue = Blue700
+val SecondaryGold = Amber500

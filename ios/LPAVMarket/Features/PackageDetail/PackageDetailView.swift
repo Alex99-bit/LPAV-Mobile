@@ -247,11 +247,12 @@ struct PackageDetailView: View {
         isGeneratingItinerary = true
         defer { isGeneratingItinerary = false }
         do {
-            let response: ItineraryResponse = try await EdgeFunction.invokeDecodable(
-                function: "generate-itinerary",
-                body: ["package_id": packageId]
+            let authToken = try? await supabase.auth.session.accessToken
+            let response = try await EdgeFunction.Functions.generateItinerary(
+                packageId: packageId,
+                authToken: authToken
             )
-            itinerary = response.summary
+            itinerary = response.description ?? response.title
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -1,5 +1,6 @@
 package com.lpav.market.ui.profile
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -43,7 +44,7 @@ fun AgencyProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(agency?.agencyName ?: "Agencia", color = Color.White) },
+                title = { Text(agency?.tenantName ?: "Agencia", color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
@@ -107,7 +108,7 @@ fun AgencyProfileScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        agency.agencyName.take(2).uppercase(),
+                                        agency.tenantName.take(2).uppercase(),
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 24.sp,
                                         color = PrimaryBlue
@@ -124,7 +125,7 @@ fun AgencyProfileScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                agency.agencyName,
+                                agency.tenantName,
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold
                             )
@@ -138,7 +139,7 @@ fun AgencyProfileScreen(
                             }
                         }
 
-                        if (agency.ratingAvg > 0) {
+                        if (agency.rating > 0) {
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
@@ -148,17 +149,17 @@ fun AgencyProfileScreen(
                                     tint = SecondaryGold
                                 )
                                 Text(
-                                    " ${String.format("%.1f", agency.ratingAvg)} (${agency.ratingCount} reseñas)",
+                                    " ${String.format("%.1f", agency.rating)}",
                                     fontSize = 14.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
 
-                        if (agency.description.isNotEmpty()) {
+                        if (!agency.description.isNullOrEmpty()) {
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                agency.description,
+                                agency.description!!,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -171,35 +172,27 @@ fun AgencyProfileScreen(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
-                                if (agency.phone.isNotEmpty()) {
+                                if (!agency.phone.isNullOrEmpty()) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(agency.phone, fontSize = 14.sp)
+                                        Text(agency.phone!!, fontSize = 14.sp)
                                     }
                                 }
-                                if (agency.email.isNotEmpty()) {
+                                if (!agency.email.isNullOrEmpty()) {
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(agency.email, fontSize = 14.sp)
+                                        Text(agency.email!!, fontSize = 14.sp)
                                     }
                                 }
-                                if (agency.website.isNotEmpty()) {
+                                if (!agency.website.isNullOrEmpty()) {
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(agency.website, fontSize = 14.sp)
-                                    }
-                                }
-                                if (agency.address.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(agency.address, fontSize = 14.sp)
+                                        Text(agency.website!!, fontSize = 14.sp)
                                     }
                                 }
                             }
@@ -218,8 +211,11 @@ fun AgencyProfileScreen(
 
                 items(uiState.packages) { pkg ->
                     PackageCard(
-                        travelPackage = pkg,
-                        onClick = { onPackageClick(pkg.id) }
+                        pkg = pkg,
+                        isInWishlist = pkg.isInWishlist,
+                        onClick = { onPackageClick(pkg.packageId) },
+                        onToggleWishlist = {},
+                        onToggleCart = {}
                     )
                 }
             }

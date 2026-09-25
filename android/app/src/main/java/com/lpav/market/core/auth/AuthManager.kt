@@ -3,7 +3,6 @@ package com.lpav.market.core.auth
 import android.app.Activity
 import com.google.gson.Gson
 import com.lpav.market.core.model.Profile
-import com.lpav.market.core.model.UserRole
 import com.lpav.market.core.network.SupabaseModule
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
@@ -31,9 +30,9 @@ class AuthManager @Inject constructor() {
 
     private val gson = Gson()
 
-    val isAgency: Boolean get() = _profile.value?.role == UserRole.AGENCY
-    val isTraveler: Boolean get() = _profile.value?.role == UserRole.TRAVELER
-    val isAdmin: Boolean get() = _profile.value?.role == UserRole.ADMIN
+    val isAgency: Boolean get() = _profile.value?.roleName == "agency"
+    val isTraveler: Boolean get() = _profile.value?.roleName == "traveler"
+    val isAdmin: Boolean get() = _profile.value?.roleName == "admin"
     val isLoggedIn: Boolean get() = _currentUser.value != null
 
     suspend fun signIn(email: String, password: String): Result<Unit> {
@@ -74,10 +73,9 @@ class AuthManager @Inject constructor() {
             user?.let {
                 val profile = Profile(
                     id = it.id,
-                    userId = it.id,
                     fullName = fullName,
                     email = email,
-                    role = if (isAgency) UserRole.AGENCY else UserRole.TRAVELER
+                    roleName = if (isAgency) "agency" else "traveler"
                 )
                 SupabaseModule.client.from("profiles").upsert(profile)
                 _profile.value = profile

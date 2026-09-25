@@ -32,11 +32,11 @@ fun MessageBubble(
     else MaterialTheme.colorScheme.onSurfaceVariant
     val bubbleShape = if (isCurrentUser) {
         MaterialTheme.shapes.large.copy(
-            bottomEnd = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
+            bottomEnd = androidx.compose.foundation.shape.CornerSize(4.dp)
         )
     } else {
         MaterialTheme.shapes.large.copy(
-            bottomStart = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
+            bottomStart = androidx.compose.foundation.shape.CornerSize(4.dp)
         )
     }
 

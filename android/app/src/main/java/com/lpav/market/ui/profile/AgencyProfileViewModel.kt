@@ -33,8 +33,8 @@ class AgencyProfileViewModel @Inject constructor() : ViewModel() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             try {
-                val agencies = SupabaseModule.client.from("agency_tenants")
-                    .select { filter { eq("id", agencyId) } }
+                val agencies = SupabaseModule.client.from("agencies_tenants")
+                    .select { filter { eq("tenant_id", agencyId) } }
                     .decodeList<AgencyTenant>()
 
                 val agency = agencies.firstOrNull()
@@ -42,8 +42,8 @@ class AgencyProfileViewModel @Inject constructor() : ViewModel() {
                 val packages = SupabaseModule.client.from("travel_packages")
                     .select {
                         filter {
-                            eq("agency_id", agencyId)
-                            eq("status", "active")
+                            eq("tenant_id", agencyId)
+                            eq("publication_status", "published")
                         }
                     }
                     .decodeList<TravelPackage>()

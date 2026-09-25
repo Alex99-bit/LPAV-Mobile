@@ -18,7 +18,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lpav.market.ui.theme.PrimaryBlue
 import com.lpav.market.ui.theme.SecondaryGold
-import com.lpav.market.core.model.PaymentStatus
 import com.lpav.market.core.model.TransactionOrder
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,7 +83,7 @@ fun OrdersScreen(
                 items(uiState.orders) { order ->
                     OrderCard(
                         order = order,
-                        onClick = { onPackageClick(order.packageId) }
+                        onClick = { onPackageClick(order.items.firstOrNull()?.packageId ?: "") }
                     )
                 }
             }
@@ -110,7 +109,7 @@ fun OrderCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    order.packageTitle.ifEmpty { "Pedido" },
+                    (order.items.firstOrNull()?.title ?: "Pedido"),
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
@@ -125,27 +124,20 @@ fun OrderCard(
             ) {
                 Column {
                     Text(
-                        "Fecha: ${order.createdAt.take(10)}",
+                        "Fecha: ${(order.createdAt ?: "").take(10)}",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if (order.travelDate.isNotEmpty()) {
-                        Text(
-                            "Viaje: ${order.travelDate}",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
                 Text(
-                    "$${String.format("%.2f", order.total)}",
+                    "${order.currency}$${String.format("%.2f", order.totalAmount)}",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
                     color = PrimaryBlue
                 )
             }
 
-            if (order.depositAmount > 0 && order.paymentStatus == PaymentStatus.DEPOSIT_PAID) {
+            if (order.remainingBalance > 0 && order.paymentStatus == "deposit_paid") {
                 Spacer(modifier = Modifier.height(8.dp))
                 LinearProgressIndicator(
                     progress = { 0.3f },
@@ -154,7 +146,7 @@ fun OrderCard(
                     trackColor = SecondaryGold.copy(alpha = 0.2f)
                 )
                 Text(
-                    "Depósito pagado: $${String.format("%.2f", order.depositAmount)}",
+                    "Restante: ${order.currency}$${String.format("%.2f", order.remainingBalance)}",
                     fontSize = 12.sp,
                     color = SecondaryGold,
                     modifier = Modifier.padding(top = 4.dp)
@@ -165,15 +157,16 @@ fun OrderCard(
 }
 
 @Composable
-fun PaymentStatusBadge(status: PaymentStatus) {
+fun PaymentStatusBadge(status: String) {
     val (text, color) = when (status) {
-        PaymentStatus.PENDING -> "Pendiente" to Color(0xFFFFA726)
-        PaymentStatus.DEPOSIT_PAID -> "Depósito Pagado" to SecondaryGold
-        PaymentStatus.PAID -> "Pagado" to Color(0xFF4CAF50)
-        PaymentStatus.PARTIALLY_REFUNDED -> "Reembolso Parcial" to Color(0xFFFF7043)
-        PaymentStatus.REFUNDED -> "Reembolsado" to Color(0xFF42A5F5)
-        PaymentStatus.CANCELLED -> "Cancelado" to Color(0xFFEF5350)
-        PaymentStatus.INSTALLMENT -> "Cuotas" to PrimaryBlue
+        "pending" -> "Pendiente" to Color(0xFFFFA726)
+        "deposit_paid" -> "Depósito Pagado" to SecondaryGold
+        "paid" -> "Pagado" to Color(0xFF4CAF50)
+        "partially_refunded" -> "Reembolso Parcial" to Color(0xFFFF7043)
+        "refunded" -> "Reembolsado" to Color(0xFF42A5F5)
+        "cancelled" -> "Cancelado" to Color(0xFFEF5350)
+        "installment" -> "Cuotas" to PrimaryBlue
+        else -> "Desconocido" to Color(0xFF9E9E9E)
     }
 
     Surface(

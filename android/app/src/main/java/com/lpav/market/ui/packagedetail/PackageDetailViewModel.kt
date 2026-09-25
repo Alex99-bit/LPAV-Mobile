@@ -49,7 +49,7 @@ class PackageDetailViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             try {
                 val pkg = SupabaseModule.client.from("travel_packages")
-                    .select { filter { eq("id", packageId) } }
+                    .select { filter { eq("package_id", packageId) } }
                     .decodeList<TravelPackage>()
                     .firstOrNull()
 
@@ -82,12 +82,12 @@ class PackageDetailViewModel @Inject constructor(
                 val item = CartItem(
                     id = UUID.randomUUID().toString(),
                     userId = "",
-                    packageId = pkg.id,
+                    packageId = pkg.packageId,
                     packageTitle = pkg.title,
-                    packageImage = pkg.images.firstOrNull(),
-                    destination = pkg.destination,
+                    packageImage = pkg.urlThumbnailStorage,
+                    destination = pkg.region,
                     quantity = _uiState.value.quantity,
-                    basePrice = pkg.basePrice
+                    basePrice = pkg.price
                 )
                 cartStorage.addToCart(item)
                 _uiState.value = _uiState.value.copy(addedToCart = true)

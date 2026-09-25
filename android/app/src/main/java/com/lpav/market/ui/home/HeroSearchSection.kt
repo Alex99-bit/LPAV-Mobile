@@ -72,7 +72,7 @@ fun HeroSearchSection(
             Button(
                 onClick = {
                     if (heroQuery.isNotBlank()) {
-                        viewModel.searchPackages(heroQuery)
+                        viewModel.updateSearchQuery(heroQuery)
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),

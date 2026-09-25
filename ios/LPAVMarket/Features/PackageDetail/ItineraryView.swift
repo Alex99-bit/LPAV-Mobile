@@ -2,11 +2,9 @@ import SwiftUI
 
 struct ItineraryView: View {
     let packageId: String
-    @State private var itinerary: [ItineraryResponse.ItineraryDay] = []
-    @State private var summary: String?
+    @State private var itinerary: ItineraryResponse?
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var preferences = ""
 
     @Environment(\.dismiss) private var dismiss
 
@@ -15,7 +13,7 @@ struct ItineraryView: View {
             Group {
                 if isLoading {
                     LPAVLoadingView(message: "Generating your itinerary...")
-                } else if itinerary.isEmpty, let error = errorMessage {
+                } else if itinerary == nil, let error = errorMessage {
                     VStack(spacing: 16) {
                         LPAVEmptyState(
                             icon: "exclamationmark.triangle",
@@ -27,8 +25,8 @@ struct ItineraryView: View {
                         }
                     }
                     .padding()
-                } else {
-                    itineraryContent
+                } else if let itinerary {
+                    itineraryContent(itinerary)
                 }
             }
             .navigationTitle("AI Itinerary")
@@ -44,44 +42,27 @@ struct ItineraryView: View {
         }
     }
 
-    private var itineraryContent: some View {
+    private func itineraryContent(_ itinerary: ItineraryResponse) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                if let summary {
+                if let description = itinerary.description {
                     LPAVCard {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Image(systemName: "sparkles")
                                     .foregroundColor(.primaryGreen)
-                                Text("AI Summary")
+                                Text("Overview")
                                     .font(.headline)
                                     .foregroundColor(.lpavText)
                             }
-                            Text(summary)
+                            Text(description)
                                 .font(.subheadline)
                                 .foregroundColor(.lpavSecondaryText)
                         }
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Customize (optional)")
-                        .font(.subheadline)
-                        .foregroundColor(.lpavSecondaryText)
-                    HStack {
-                        TextField("e.g., less hiking, more food", text: $preferences)
-                        Button("Regenerate") {
-                            Task { await generate() }
-                        }
-                        .font(.caption)
-                        .foregroundColor(.primaryGreen)
-                    }
-                    .padding(10)
-                    .background(Color.lpavSurface)
-                    .cornerRadius(10)
-                }
-
-                ForEach(itinerary) { day in
+                ForEach(itinerary.days) { day in
                     ItineraryDayCard(day: day)
                 }
             }
@@ -95,12 +76,12 @@ struct ItineraryView: View {
         errorMessage = nil
 
         do {
+            let authToken = try? await supabase.auth.session.accessToken
             let response = try await EdgeFunction.Functions.generateItinerary(
                 packageId: packageId,
-                preferences: preferences.isEmpty ? nil : preferences
+                authToken: authToken
             )
-            itinerary = response.itinerary
-            summary = response.summary
+            itinerary = response
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -116,7 +97,7 @@ struct ItineraryDayCard: View {
         LPAVCard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("Day \(day.day)")
+                    Text("Day \(day.dayNumber)")
                         .font(.subheadline)
                         .fontWeight(.bold)
                         .foregroundColor(.primaryGreen)
@@ -130,39 +111,32 @@ struct ItineraryDayCard: View {
                         .foregroundColor(.lpavText)
                 }
 
-                Text(day.description)
-                    .font(.subheadline)
-                    .foregroundColor(.lpavSecondaryText)
-
-                if let activities = day.activities, !activities.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
+                if !day.activities.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("Activities")
                             .font(.caption)
                             .fontWeight(.semibold)
                             .foregroundColor(.lightBlue)
-                        ForEach(activities, id: \.self) { activity in
-                            HStack(spacing: 6) {
-                                Circle().fill(Color.lightBlue).frame(width: 6, height: 6)
-                                Text(activity)
-                                    .font(.subheadline)
-                                    .foregroundColor(.lpavText)
-                            }
-                        }
-                    }
-                }
+                        ForEach(day.activities) { activity in
+                            HStack(alignment: .top, spacing: 8) {
+                                VStack(spacing: 2) {
+                                    Text(activity.time)
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.lightBlue)
+                                }
+                                .frame(width: 50, alignment: .leading)
 
-                if let meals = day.meals, !meals.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Meals")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.primaryGreen)
-                        ForEach(meals, id: \.self) { meal in
-                            HStack(spacing: 6) {
-                                Circle().fill(Color.primaryGreen).frame(width: 6, height: 6)
-                                Text(meal)
-                                    .font(.subheadline)
-                                    .foregroundColor(.lpavText)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(activity.description)
+                                        .font(.subheadline)
+                                        .foregroundColor(.lpavText)
+                                    if let location = activity.location {
+                                        Text(location)
+                                            .font(.caption)
+                                            .foregroundColor(.lpavSecondaryText)
+                                    }
+                                }
                             }
                         }
                     }

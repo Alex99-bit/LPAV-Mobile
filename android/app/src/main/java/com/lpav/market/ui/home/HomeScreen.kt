@@ -157,8 +157,11 @@ fun HomeScreen(
                 ) {
                     items(uiState.filteredPackages) { pkg ->
                         PackageCard(
-                            travelPackage = pkg,
-                            onClick = { onPackageClick(pkg.id) }
+                            pkg = pkg,
+                            isInWishlist = pkg.isInWishlist,
+                            onClick = { onPackageClick(pkg.packageId) },
+                            onToggleWishlist = {},
+                            onToggleCart = {}
                         )
                     }
                 }

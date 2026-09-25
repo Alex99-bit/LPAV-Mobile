@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 
@@ -37,7 +38,7 @@ fun BottomNavBar(
         NavigationBar(
             modifier = modifier,
             containerColor = MaterialTheme.colorScheme.surface,
-            tonalElevation = androidx.compose.ui.unit.dp.times(3)
+            tonalElevation = 3.dp
         ) {
             screens.forEach { screen ->
                 val selected = currentRoute == screen.route

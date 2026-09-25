@@ -96,12 +96,11 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 
     // Supabase
-    implementation("io.github.jan-tennert.supabase:supabase-bom:2.0.0")
-    implementation("io.github.jan-tennert.supabase:postgrest-kt")
-    implementation("io.github.jan-tennert.supabase:realtime-kt")
-    implementation("io.github.jan-tennert.supabase:functions-kt")
-    implementation("io.github.jan-tennert.supabase:storage-kt")
-    implementation("io.github.jan-tennert.supabase:auth-kt")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.6.1")
+    implementation("io.github.jan-tennert.supabase:realtime-kt:2.6.1")
+    implementation("io.github.jan-tennert.supabase:functions-kt:2.6.1")
+    implementation("io.github.jan-tennert.supabase:storage-kt:2.6.1")
+    implementation("io.github.jan-tennert.supabase:gotrue-kt:2.6.1")
 
     // Ktor (required by Supabase)
     implementation("io.ktor:ktor-client-android:2.3.7")
@@ -134,6 +133,9 @@ dependencies {
 
     // Splash Screen
     implementation("androidx.core:core-splashscreen:1.0.1")
+
+    // Biometric
+    implementation("androidx.biometric:biometric:1.1.0")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

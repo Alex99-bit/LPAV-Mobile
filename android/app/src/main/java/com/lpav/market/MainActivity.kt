@@ -11,8 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
 import com.lpav.market.core.auth.AuthManager
-import com.lpav.market.ui.navigation.LPAVNavGraph
-import com.lpav.market.ui.theme.LPAVMarketTheme
+import com.lpav.market.ui.navigation.NavGraph
+import com.lpav.market.ui.theme.LpavTheme
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -29,12 +29,12 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            LPAVMarketTheme {
+            LpavTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    LPAVNavGraph()
+                    NavGraph()
                 }
             }
         }

@@ -135,28 +135,28 @@ class CheckoutViewModel @Inject constructor(
                 val userId = SupabaseModule.client.auth.currentUserOrNull()?.id
                     ?: throw Exception("No autenticado")
 
+                val orderItems = _uiState.value.items.map { cartItem ->
+                    com.lpav.market.core.model.OrderItem(
+                        packageId = cartItem.packageId,
+                        title = cartItem.packageTitle,
+                        quantity = cartItem.quantity,
+                        unitPrice = cartItem.basePrice,
+                        urlThumbnail = cartItem.packageImage
+                    )
+                }
+
                 val order = TransactionOrder(
-                    id = "",
+                    orderId = "",
                     userId = userId,
-                    packageId = _uiState.value.items.first().packageId,
-                    quantity = _uiState.value.items.sumOf { it.quantity },
-                    basePrice = _uiState.value.subtotal,
-                    subtotal = _uiState.value.subtotal,
-                    iva = _uiState.value.iva,
-                    total = _uiState.value.subtotal + _uiState.value.iva,
-                    depositAmount = _uiState.value.depositAmount,
+                    totalAmount = _uiState.value.subtotal + _uiState.value.iva,
+                    remainingBalance = _uiState.value.depositAmount,
                     pointsUsed = _uiState.value.pointsToUse,
-                    pointsDiscount = _uiState.value.pointsDiscount,
-                    travelDate = _uiState.value.travelDate,
-                    notes = _uiState.value.notes
+                    items = orderItems,
+                    paymentStatus = "pending",
+                    fulfillmentStatus = "pending"
                 )
 
-                SupabaseModule.client.functions.invoke(
-                    body = mapOf(
-                        "order" to order,
-                        "payment_method_id" to stripePaymentMethodId
-                    )
-                )
+                SupabaseModule.client.functions.invoke("create-checkout")
 
                 cartStorage.clearCart()
                 _uiState.value = _uiState.value.copy(

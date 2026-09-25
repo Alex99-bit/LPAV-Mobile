@@ -2,6 +2,7 @@ package com.lpav.market.ui.navigation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -15,26 +16,16 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.lpav.market.ui.auth.LoginScreen
 import com.lpav.market.ui.auth.RegisterScreen
-import com.lpav.market.ui.auth.OnboardingQuestionnaireScreen
-import com.lpav.market.ui.auth.AgencyAuthScreen
-import com.lpav.market.ui.auth.AgencyRegisterScreen
 import com.lpav.market.ui.home.HomeScreen
-import com.lpav.market.ui.home.PackageDetailScreen
-import com.lpav.market.ui.home.WishlistScreen
-import com.lpav.market.ui.chat.ChatListScreen
-import com.lpav.market.ui.chat.ChatScreen
-import com.lpav.market.ui.checkout.CartScreen
-import com.lpav.market.ui.checkout.CheckoutScreen
-import com.lpav.market.ui.checkout.OrdersScreen
-import com.lpav.market.ui.profile.ProfileScreen
-import com.lpav.market.ui.profile.PointsWalletScreen
-import com.lpav.market.ui.agency.AgencyDashboardScreen
-import com.lpav.market.ui.agency.AgencyFlyersScreen
-import com.lpav.market.ui.agency.AgencyCRMScreen
-import com.lpav.market.ui.agency.AgencyFinanceScreen
-import com.lpav.market.ui.agency.AgencyLogisticsScreen
-import com.lpav.market.ui.agency.AgencySettingsScreen
 import com.lpav.market.ui.home.HomeViewModel
+import com.lpav.market.ui.cart.CartScreen
+import com.lpav.market.ui.chat.ChatScreen
+import com.lpav.market.ui.checkout.CheckoutScreen
+import com.lpav.market.ui.orders.OrdersScreen
+import com.lpav.market.ui.packagedetail.PackageDetailScreen
+import com.lpav.market.ui.notifications.NotificationsScreen
+import com.lpav.market.ui.wallet.WalletScreen
+import com.lpav.market.ui.profile.AgencyProfileScreen
 
 @Composable
 fun NavGraph() {
@@ -59,27 +50,39 @@ fun NavGraph() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Home.route) {
-                val viewModel: HomeViewModel = hiltViewModel()
                 HomeScreen(
-                    navController = navController,
-                    viewModel = viewModel
+                    onPackageClick = { packageId -> navController.navigate("package/$packageId") },
+                    onCartClick = { navController.navigate(Screen.Cart.route) },
+                    onNotificationsClick = { navController.navigate("notifications") },
+                    onAgencyClick = { agencyId -> navController.navigate("agency/$agencyId") },
+                    onLogout = { navController.navigate(Screen.Login.route) { popUpTo(Screen.Home.route) { inclusive = true } } }
                 )
             }
 
             composable(Screen.Search.route) {
-                HomeScreen(navController = navController, viewModel = hiltViewModel())
+                HomeScreen(
+                    onPackageClick = { packageId -> navController.navigate("package/$packageId") },
+                    onCartClick = { navController.navigate(Screen.Cart.route) },
+                    onNotificationsClick = { navController.navigate("notifications") },
+                    onAgencyClick = { agencyId -> navController.navigate("agency/$agencyId") },
+                    onLogout = { navController.navigate(Screen.Login.route) { popUpTo(Screen.Home.route) { inclusive = true } } }
+                )
             }
 
             composable(Screen.Cart.route) {
-                CartScreen(navController = navController)
+                CartScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onCheckout = { navController.navigate(Screen.Checkout.route) },
+                    onPackageClick = { packageId -> navController.navigate("package/$packageId") }
+                )
             }
 
             composable(Screen.Chat.route) {
-                ChatListScreen(navController = navController)
+                Text("Chat List - TODO")
             }
 
             composable(Screen.Profile.route) {
-                ProfileScreen(navController = navController)
+                Text("Profile - TODO")
             }
 
             composable(
@@ -88,69 +91,61 @@ fun NavGraph() {
             ) { backStackEntry ->
                 val packageId = backStackEntry.arguments?.getString("packageId") ?: ""
                 PackageDetailScreen(
-                    navController = navController,
-                    packageId = packageId
+                    packageId = packageId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onAddToCart = { navController.navigate(Screen.Cart.route) },
+                    onAgencyClick = { agencyId -> navController.navigate("agency/$agencyId") }
                 )
             }
 
             composable(Screen.Wishlist.route) {
-                WishlistScreen(navController = navController)
+                Text("Wishlist - TODO")
             }
 
             composable(Screen.Login.route) {
-                LoginScreen(navController = navController)
+                LoginScreen(
+                    onNavigateToRegister = { navController.navigate(Screen.Register.route) },
+                    onNavigateToHome = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Login.route) { inclusive = true } } }
+                )
             }
 
             composable(Screen.Register.route) {
-                RegisterScreen(navController = navController)
+                RegisterScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToHome = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Register.route) { inclusive = true } } }
+                )
             }
 
             composable(Screen.Onboarding.route) {
-                OnboardingQuestionnaireScreen(navController = navController)
+                Text("Onboarding - TODO")
             }
 
             composable(Screen.AgencyAuth.route) {
-                AgencyAuthScreen(navController = navController)
+                Text("Agency Auth - TODO")
             }
 
             composable(Screen.AgencyRegister.route) {
-                AgencyRegisterScreen(navController = navController)
+                Text("Agency Register - TODO")
             }
 
             composable(Screen.Checkout.route) {
-                CheckoutScreen(navController = navController)
+                CheckoutScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onOrderComplete = { navController.navigate(Screen.Orders.route) { popUpTo(Screen.Checkout.route) { inclusive = true } } }
+                )
             }
 
             composable(Screen.Orders.route) {
-                OrdersScreen(navController = navController)
+                OrdersScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onPackageClick = { packageId -> navController.navigate("package/$packageId") }
+                )
             }
 
             composable(Screen.PointsWallet.route) {
-                PointsWalletScreen(navController = navController)
-            }
-
-            composable(Screen.AgencyDashboard.route) {
-                AgencyDashboardScreen(navController = navController)
-            }
-
-            composable(Screen.AgencyFlyers.route) {
-                AgencyFlyersScreen(navController = navController)
-            }
-
-            composable(Screen.AgencyCRM.route) {
-                AgencyCRMScreen(navController = navController)
-            }
-
-            composable(Screen.AgencyFinance.route) {
-                AgencyFinanceScreen(navController = navController)
-            }
-
-            composable(Screen.AgencyLogistics.route) {
-                AgencyLogisticsScreen(navController = navController)
-            }
-
-            composable(Screen.AgencySettings.route) {
-                AgencySettingsScreen(navController = navController)
+                WalletScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
 
             composable(
@@ -159,8 +154,28 @@ fun NavGraph() {
             ) { backStackEntry ->
                 val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
                 ChatScreen(
-                    navController = navController,
-                    conversationId = conversationId
+                    conversationId = conversationId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(
+                route = "notifications"
+            ) {
+                NotificationsScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(
+                route = "agency/{agencyId}",
+                arguments = listOf(navArgument("agencyId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val agencyId = backStackEntry.arguments?.getString("agencyId") ?: ""
+                AgencyProfileScreen(
+                    agencyId = agencyId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onPackageClick = { packageId -> navController.navigate("package/$packageId") }
                 )
             }
         }

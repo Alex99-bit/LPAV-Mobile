@@ -1,9 +1,11 @@
 package com.lpav.market.ui.notifications
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -18,7 +20,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lpav.market.ui.theme.PrimaryBlue
 import com.lpav.market.core.model.Notification
-import com.lpav.market.core.model.NotificationType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,7 +88,7 @@ fun NotificationsScreen(
                 items(uiState.notifications) { notification ->
                     NotificationCard(
                         notification = notification,
-                        onClick = { viewModel.markAsRead(notification.id) }
+                        onClick = { viewModel.markAsRead(notification.notificationId) }
                     )
                 }
             }
@@ -101,11 +102,11 @@ fun NotificationCard(
     onClick: () -> Unit
 ) {
     val (icon, color) = when (notification.type) {
-        NotificationType.ORDER_UPDATE -> Pair(Icons.Default.ShoppingBag, PrimaryBlue)
-        NotificationType.PAYMENT_UPDATE -> Pair(Icons.Default.Payment, Color(0xFF4CAF50))
-        NotificationType.CHAT_MESSAGE -> Pair(Icons.Default.Chat, Color(0xFF42A5F5))
-        NotificationType.PROMOTION -> Pair(Icons.Default.LocalOffer, Color(0xFFFFA726))
-        NotificationType.SYSTEM -> Pair(Icons.Default.Info, Color(0xFF78909C))
+        "order_update" -> Pair(Icons.Default.ShoppingBag, PrimaryBlue)
+        "payment_update" -> Pair(Icons.Default.Payment, Color(0xFF4CAF50))
+        "chat_message" -> Pair(Icons.Default.Chat, Color(0xFF42A5F5))
+        "promotion" -> Pair(Icons.Default.LocalOffer, Color(0xFFFFA726))
+        else -> Pair(Icons.Default.Info, Color(0xFF78909C))
     }
 
     Card(
@@ -148,7 +149,7 @@ fun NotificationCard(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    notification.createdAt.take(16).replace("T", " "),
+                    (notification.createdAt ?: "").take(16).replace("T", " "),
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

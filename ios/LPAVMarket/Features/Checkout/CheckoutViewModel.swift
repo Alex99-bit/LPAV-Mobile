@@ -80,17 +80,24 @@ final class CheckoutViewModel {
         isProcessingPayment = true
         defer { isProcessingPayment = false }
 
+        guard let firstPackageId = cartPackages.first?.packageId else {
+            errorMessage = "No hay paquetes en el carrito"
+            return
+        }
+
         do {
-            let successUrl = "lpavmarket://checkout/success"
-            let cancelUrl = "lpavmarket://checkout/cancel"
+            let authToken = try? await supabase.auth.session.accessToken
+            let depositPercent = appliedPoints > 0 ? nil : 0.2
+            let pointsToRedeem = appliedPoints > 0 ? appliedPoints : nil
 
             let response = try await EdgeFunction.Functions.createCheckoutSession(
-                packageIds: packageIds,
-                successUrl: successUrl,
-                cancelUrl: cancelUrl
+                packageId: firstPackageId,
+                depositPercent: depositPercent,
+                pointsToRedeem: pointsToRedeem,
+                authToken: authToken
             )
 
-            if let urlString = response.url, let url = URL(string: urlString) {
+            if let url = URL(string: response.url) {
                 stripeURL = url
             }
         } catch {

@@ -108,9 +108,9 @@ extension APIRouter {
             searchQuery: String? = nil
         ) async throws -> [TravelPackage] {
             var query = supabase.database
-                .from("packages")
+                .from("travel_packages")
                 .select()
-                .eq("publication_status", value: "active")
+                .eq("publication_status", value: "published")
                 .order("created_at", ascending: false)
                 .range(from: (page - 1) * limit, to: page * limit - 1)
 
@@ -133,7 +133,7 @@ extension APIRouter {
 
         static func fetchPackage(packageId: String) async throws -> TravelPackage {
             let response: [TravelPackage] = try await supabase.database
-                .from("packages")
+                .from("travel_packages")
                 .select()
                 .eq("package_id", value: packageId)
                 .execute()
@@ -146,9 +146,9 @@ extension APIRouter {
 
         static func fetchFeatured() async throws -> [TravelPackage] {
             let response: [TravelPackage] = try await supabase.database
-                .from("packages")
+                .from("travel_packages")
                 .select()
-                .eq("publication_status", value: "active")
+                .eq("publication_status", value: "published")
                 .eq("is_featured", value: true)
                 .limit(10)
                 .execute()
@@ -158,7 +158,7 @@ extension APIRouter {
 
         static func fetchByTenant(tenantId: String) async throws -> [TravelPackage] {
             let response: [TravelPackage] = try await supabase.database
-                .from("packages")
+                .from("travel_packages")
                 .select()
                 .eq("tenant_id", value: tenantId)
                 .order("created_at", ascending: false)
@@ -169,7 +169,7 @@ extension APIRouter {
 
         static func create(_ package: TravelPackage) async throws -> TravelPackage {
             let response: [TravelPackage] = try await supabase.database
-                .from("packages")
+                .from("travel_packages")
                 .insert(package)
                 .select()
                 .execute()
@@ -182,7 +182,7 @@ extension APIRouter {
 
         static func update(_ package: TravelPackage) async throws -> TravelPackage {
             let response: [TravelPackage] = try await supabase.database
-                .from("packages")
+                .from("travel_packages")
                 .update(package)
                 .eq("package_id", value: package.packageId)
                 .select()
@@ -198,7 +198,7 @@ extension APIRouter {
     enum Orders {
         static func create(order: TransactionOrder) async throws -> TransactionOrder {
             let response: [TransactionOrder] = try await supabase.database
-                .from("orders")
+                .from("transactions_orders")
                 .insert(order)
                 .select()
                 .execute()
@@ -211,7 +211,7 @@ extension APIRouter {
 
         static func fetchUserOrders(userId: String) async throws -> [TransactionOrder] {
             let response: [TransactionOrder] = try await supabase.database
-                .from("orders")
+                .from("transactions_orders")
                 .select()
                 .eq("user_id", value: userId)
                 .order("created_at", ascending: false)
@@ -222,7 +222,7 @@ extension APIRouter {
 
         static func fetchOrder(orderId: String) async throws -> TransactionOrder {
             let response: [TransactionOrder] = try await supabase.database
-                .from("orders")
+                .from("transactions_orders")
                 .select()
                 .eq("order_id", value: orderId)
                 .execute()
@@ -237,7 +237,7 @@ extension APIRouter {
     enum CRM {
         static func fetchLeads(tenantId: String, status: String? = nil) async throws -> [CRMLead] {
             var query = supabase.database
-                .from("leads")
+                .from("crm_leads")
                 .select()
                 .eq("tenant_id", value: tenantId)
                 .order("created_at", ascending: false)
@@ -252,7 +252,7 @@ extension APIRouter {
 
         static func updateLeadStatus(leadId: String, status: String) async throws {
             try await supabase.database
-                .from("leads")
+                .from("crm_leads")
                 .update(["status": status])
                 .eq("lead_id", value: leadId)
                 .execute()
@@ -260,7 +260,7 @@ extension APIRouter {
 
         static func assignLead(leadId: String, assignedTo: String) async throws {
             try await supabase.database
-                .from("leads")
+                .from("crm_leads")
                 .update(["assigned_to": assignedTo])
                 .eq("lead_id", value: leadId)
                 .execute()
@@ -281,7 +281,7 @@ extension APIRouter {
 
         static func fetchMessages(conversationId: String, limit: Int = 50) async throws -> [ChatMessage] {
             let response: [ChatMessage] = try await supabase.database
-                .from("messages")
+                .from("chat_messages")
                 .select()
                 .eq("conversation_id", value: conversationId)
                 .order("created_at", ascending: false)
@@ -293,7 +293,7 @@ extension APIRouter {
 
         static func sendMessage(_ message: ChatMessage) async throws -> ChatMessage {
             let response: [ChatMessage] = try await supabase.database
-                .from("messages")
+                .from("chat_messages")
                 .insert(message)
                 .select()
                 .execute()
@@ -305,7 +305,7 @@ extension APIRouter {
         }
 
         static func subscribeToMessages(conversationId: String) async throws -> RealtimeChannel {
-            let channel = supabase.channel("messages:\(conversationId)")
+            let channel = supabase.channel("chat_messages:\(conversationId)")
             return channel
         }
     }
@@ -313,7 +313,7 @@ extension APIRouter {
     enum Reviews {
         static func fetchForPackage(packageId: String) async throws -> [PackageReview] {
             let response: [PackageReview] = try await supabase.database
-                .from("reviews")
+                .from("package_reviews")
                 .select()
                 .eq("package_id", value: packageId)
                 .order("created_at", ascending: false)
@@ -324,7 +324,7 @@ extension APIRouter {
 
         static func createReview(_ review: PackageReview) async throws -> PackageReview {
             let response: [PackageReview] = try await supabase.database
-                .from("reviews")
+                .from("package_reviews")
                 .insert(review)
                 .select()
                 .execute()
@@ -339,7 +339,7 @@ extension APIRouter {
     enum Wallet {
         static func fetchWallet(userId: String) async throws -> UserWallet {
             let response: [UserWallet] = try await supabase.database
-                .from("wallets")
+                .from("user_wallets")
                 .select()
                 .eq("user_id", value: userId)
                 .execute()
@@ -401,7 +401,7 @@ extension APIRouter {
     enum Tenants {
         static func fetchTenant(tenantId: String) async throws -> AgencyTenant {
             let response: [AgencyTenant] = try await supabase.database
-                .from("tenants")
+                .from("agencies_tenants")
                 .select()
                 .eq("tenant_id", value: tenantId)
                 .execute()

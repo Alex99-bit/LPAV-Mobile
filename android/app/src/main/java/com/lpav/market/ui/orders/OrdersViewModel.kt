@@ -35,7 +35,7 @@ class OrdersViewModel @Inject constructor() : ViewModel() {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             try {
                 val userId = SupabaseModule.client.auth.currentUserOrNull()?.id ?: return@launch
-                val orders = SupabaseModule.client.from("transaction_orders")
+                val orders = SupabaseModule.client.from("transactions_orders")
                     .select {
                         filter { eq("user_id", userId) }
                         order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)

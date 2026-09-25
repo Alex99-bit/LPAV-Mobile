@@ -81,9 +81,10 @@ fun PackageDetailScreen(
                             .height(250.dp)
                             .clip(MaterialTheme.shapes.medium)
                     ) {
-                        if (pkg.images.isNotEmpty()) {
+                        val imageUrl = pkg.urlFlyerStorage ?: pkg.urlThumbnailStorage
+                        if (imageUrl != null) {
                             coil.compose.AsyncImage(
-                                model = pkg.images.first(),
+                                model = imageUrl,
                                 contentDescription = pkg.title,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
@@ -119,13 +120,13 @@ fun PackageDetailScreen(
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.weight(1f)
                             )
-                            if (pkg.featured) {
+                            if (pkg.publicationStatus == "published") {
                                 Surface(
                                     color = SecondaryGold,
                                     shape = MaterialTheme.shapes.small
                                 ) {
                                     Text(
-                                        "Destacado",
+                                        "Publicado",
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
@@ -145,12 +146,12 @@ fun PackageDetailScreen(
                                 tint = PrimaryBlue
                             )
                             Text(
-                                "${pkg.destination}, ${pkg.country}",
+                                pkg.region,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
-                        if (pkg.ratingAvg > 0) {
+                        if (pkg.rating > 0) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
@@ -160,7 +161,7 @@ fun PackageDetailScreen(
                                     tint = SecondaryGold
                                 )
                                 Text(
-                                    " ${String.format("%.1f", pkg.ratingAvg)} (${pkg.ratingCount} reseñas)",
+                                    " ${String.format("%.1f", pkg.rating)} (${pkg.reviewCount} reseñas)",
                                     fontSize = 14.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -173,9 +174,8 @@ fun PackageDetailScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            InfoChip(icon = Icons.Default.CalendarToday, text = "${pkg.durationDays}D/${pkg.durationNights}N")
-                            InfoChip(icon = Icons.Default.People, text = "${pkg.currentParticipants}/${pkg.maxParticipants}")
-                            InfoChip(icon = Icons.Default.AttachMoney, text = "$${String.format("%.2f", pkg.basePrice)}")
+                            InfoChip(icon = Icons.Default.People, text = "${pkg.maxTravelers - pkg.availableSlots}/${pkg.maxTravelers}")
+                            InfoChip(icon = Icons.Default.AttachMoney, text = "$${String.format("%.2f", pkg.price)}")
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -187,12 +187,12 @@ fun PackageDetailScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            pkg.description,
+                            pkg.description ?: "",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        if (pkg.inclusions.isNotEmpty()) {
+                        if (pkg.includesList.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 "Incluye",
@@ -200,7 +200,7 @@ fun PackageDetailScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            pkg.inclusions.forEach { item ->
+                            pkg.includesList.forEach { item ->
                                 Row(
                                     modifier = Modifier.padding(vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
@@ -217,7 +217,7 @@ fun PackageDetailScreen(
                             }
                         }
 
-                        if (pkg.exclusions.isNotEmpty()) {
+                        if (pkg.excludesList.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 "No incluye",
@@ -225,7 +225,7 @@ fun PackageDetailScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            pkg.exclusions.forEach { item ->
+                            pkg.excludesList.forEach { item ->
                                 Row(
                                     modifier = Modifier.padding(vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
@@ -254,16 +254,16 @@ fun PackageDetailScreen(
                             Text("Ver Itinerario")
                         }
 
-                        if (pkg.agencyId.isNotEmpty()) {
+                        if (!pkg.tenantId.isNullOrEmpty()) {
                             Spacer(modifier = Modifier.height(16.dp))
                             OutlinedButton(
-                                onClick = { onAgencyClick(pkg.agencyId) },
+                                onClick = { onAgencyClick(pkg.tenantId) },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 Icon(Icons.Default.Business, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Ver Agencia: ${pkg.agencyName ?: "Agencia"}")
+                                Text("Ver Agencia")
                             }
                         }
                     }
@@ -285,28 +285,12 @@ fun PackageDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
-                            if (pkg.discountPercent > 0) {
-                                val discounted = pkg.basePrice * (1 - pkg.discountPercent / 100)
-                                Text(
-                                    "$${String.format("%.2f", pkg.basePrice)}",
-                                    textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 14.sp
-                                )
-                                Text(
-                                    "$${String.format("%.2f", discounted)}",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 24.sp,
-                                    color = PrimaryBlue
-                                )
-                            } else {
-                                Text(
-                                    "$${String.format("%.2f", pkg.basePrice)}",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 24.sp,
-                                    color = PrimaryBlue
-                                )
-                            }
+                            Text(
+                                "$${String.format("%.2f", pkg.price)}",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 24.sp,
+                                color = PrimaryBlue
+                            )
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -323,7 +307,7 @@ fun PackageDetailScreen(
                             )
                             IconButton(
                                 onClick = { viewModel.updateQuantity(uiState.quantity + 1) },
-                                enabled = uiState.quantity < (pkg.maxParticipants - pkg.currentParticipants)
+                                enabled = uiState.quantity < pkg.availableSlots
                             ) {
                                 Icon(Icons.Default.Add, contentDescription = "Más")
                             }

@@ -4,7 +4,6 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lpav.market.core.model.ChatMessage
-import com.lpav.market.core.model.ChatMessageType
 import com.lpav.market.core.network.SupabaseModule
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -60,20 +59,6 @@ class ChatViewModel @Inject constructor() : ViewModel() {
     }
 
     private fun subscribeToMessages() {
-        viewModelScope.launch {
-            try {
-                val channel = SupabaseModule.client.channel("chat:$conversationId")
-                val messageFlow = channel.postgresListDataFlow("chat_messages") {
-                    filter {
-                        eq("conversation_id", conversationId)
-                    }
-                }
-                channel.subscribe()
-                messageFlow.collect { messages ->
-                    _uiState.value = _uiState.value.copy(messages = messages)
-                }
-            } catch (_: Exception) {}
-        }
     }
 
     fun updateInput(text: String) {
@@ -92,11 +77,10 @@ class ChatViewModel @Inject constructor() : ViewModel() {
             try {
                 val userId = SupabaseModule.client.auth.currentUserOrNull()?.id ?: return@launch
                 val message = ChatMessage(
-                    id = UUID.randomUUID().toString(),
+                    messageId = UUID.randomUUID().toString(),
                     conversationId = conversationId,
                     senderId = userId,
-                    content = text,
-                    messageType = ChatMessageType.TEXT
+                    messageText = text
                 )
                 SupabaseModule.client.from("chat_messages").insert(message)
                 _uiState.value = _uiState.value.copy(inputText = "")

@@ -46,7 +46,7 @@ class WalletViewModel @Inject constructor() : ViewModel() {
                     val wallet = wallets.first()
                     val transactions = SupabaseModule.client.from("wallet_transactions")
                         .select {
-                            filter { eq("wallet_id", wallet.id) }
+                            filter { eq("wallet_id", wallet.walletId) }
                             order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                         }
                         .decodeList<WalletTransaction>()

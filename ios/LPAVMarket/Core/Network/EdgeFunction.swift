@@ -12,7 +12,8 @@ enum EdgeFunction {
     static func invoke(
         function: String,
         body: [String: Any] = [:],
-        method: String = "POST"
+        method: String = "POST",
+        authToken: String? = nil
     ) async throws -> Data {
         guard let url = URL(string: "\(supabaseURL)/functions/v1/\(function)") else {
             throw EdgeFunctionError.invalidURL
@@ -21,7 +22,13 @@ enum EdgeFunction {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(supabaseAnonKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(supabaseAnonKey)", forHTTPHeaderField: "apikey")
+
+        if let authToken {
+            request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+        } else {
+            request.setValue("Bearer \(supabaseAnonKey)", forHTTPHeaderField: "Authorization")
+        }
 
         if !body.isEmpty {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -29,10 +36,16 @@ enum EdgeFunction {
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-            throw EdgeFunctionError.httpError(statusCode)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw EdgeFunctionError.httpError(-1)
+        }
+
+        if !(200...299).contains(httpResponse.statusCode) {
+            if let errorBody = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let errorMsg = errorBody["error"] as? String {
+                throw EdgeFunctionError.serverError(errorMsg)
+            }
+            throw EdgeFunctionError.httpError(httpResponse.statusCode)
         }
 
         return data
@@ -41,54 +54,137 @@ enum EdgeFunction {
     static func invokeDecodable<T: Decodable>(
         function: String,
         body: [String: Any] = [:],
-        method: String = "POST"
+        method: String = "POST",
+        authToken: String? = nil
     ) async throws -> T {
-        let data = try await invoke(function: function, body: body, method: method)
+        let data = try await invoke(function: function, body: body, method: method, authToken: authToken)
         let decoder = JSONDecoder()
         return try decoder.decode(T.self, from: data)
     }
 
     enum Functions {
-        static func createCheckoutSession(packageIds: [String], successUrl: String, cancelUrl: String) async throws -> CreateCheckoutResponse {
+        static func createCheckoutSession(
+            packageId: String,
+            depositPercent: Double? = nil,
+            pointsToRedeem: Int? = nil,
+            authToken: String? = nil
+        ) async throws -> CreateCheckoutResponse {
+            var body: [String: Any] = ["package_id": packageId]
+            if let depositPercent {
+                body["deposit_percent"] = depositPercent
+            }
+            if let pointsToRedeem {
+                body["points_to_redeem"] = pointsToRedeem
+            }
             let response: CreateCheckoutResponse = try await EdgeFunction.invokeDecodable(
                 function: "create-checkout",
-                body: [
-                    "package_ids": packageIds,
-                    "success_url": successUrl,
-                    "cancel_url": cancelUrl
-                ]
+                body: body,
+                authToken: authToken
             )
             return response
         }
 
-        static func generateItinerary(packageId: String, preferences: String?) async throws -> ItineraryResponse {
+        static func generateItinerary(
+            packageId: String,
+            clusterInterestsHash: String? = nil,
+            authToken: String? = nil
+        ) async throws -> ItineraryResponse {
             var body: [String: Any] = ["package_id": packageId]
-            if let preferences {
-                body["preferences"] = preferences
+            if let clusterInterestsHash {
+                body["cluster_interests_hash"] = clusterInterestsHash
             }
             let response: ItineraryResponse = try await EdgeFunction.invokeDecodable(
                 function: "generate-itinerary",
-                body: body
+                body: body,
+                authToken: authToken
             )
             return response
         }
 
-        static func searchWithGemini(query: String, context: [String: Any] = [:]) async throws -> GeminiSearchResponse {
-            var body: [String: Any] = ["query": query]
-            for (key, value) in context {
-                body[key] = value
+        static func createLead(
+            packageId: String,
+            authToken: String? = nil
+        ) async throws -> CreateLeadResponse {
+            let response: CreateLeadResponse = try await EdgeFunction.invokeDecodable(
+                function: "create-lead",
+                body: ["package_id": packageId],
+                authToken: authToken
+            )
+            return response
+        }
+
+        static func aiQualifyLead(
+            leadId: String,
+            conversationId: String,
+            latestMessage: String,
+            authToken: String? = nil
+        ) async throws -> QualifyLeadResponse {
+            let response: QualifyLeadResponse = try await EdgeFunction.invokeDecodable(
+                function: "ai-qualify-lead",
+                body: [
+                    "lead_id": leadId,
+                    "conversation_id": conversationId,
+                    "latest_message": latestMessage
+                ],
+                authToken: authToken
+            )
+            return response
+        }
+
+        static func createChatPayment(
+            conversationId: String,
+            amount: Double,
+            currency: String = "MXN",
+            concept: String,
+            orderId: String? = nil,
+            authToken: String? = nil
+        ) async throws -> ChatPaymentResponse {
+            var body: [String: Any] = [
+                "conversation_id": conversationId,
+                "amount": amount,
+                "currency": currency,
+                "concept": concept
+            ]
+            if let orderId {
+                body["order_id"] = orderId
             }
-            let response: GeminiSearchResponse = try await EdgeFunction.invokeDecodable(
-                function: "gemini-search",
-                body: body
+            let response: ChatPaymentResponse = try await EdgeFunction.invokeDecodable(
+                function: "create-chat-payment",
+                body: body,
+                authToken: authToken
             )
             return response
         }
 
-        static func qualifyLead(leadId: String) async throws -> LeadQualificationResponse {
-            let response: LeadQualificationResponse = try await EdgeFunction.invokeDecodable(
-                function: "qualify-lead",
-                body: ["lead_id": leadId]
+        static func manageSubscription(
+            action: String,
+            plan: String? = nil,
+            billingCycle: String? = nil,
+            authToken: String? = nil
+        ) async throws -> SubscriptionResponse {
+            var body: [String: Any] = ["action": action]
+            if let plan {
+                body["plan"] = plan
+            }
+            if let billingCycle {
+                body["billing_cycle"] = billingCycle
+            }
+            let response: SubscriptionResponse = try await EdgeFunction.invokeDecodable(
+                function: "manage-subscription",
+                body: body,
+                authToken: authToken
+            )
+            return response
+        }
+
+        static func presignedUrl(
+            filename: String,
+            authToken: String? = nil
+        ) async throws -> PresignedUrlResponse {
+            let response: PresignedUrlResponse = try await EdgeFunction.invokeDecodable(
+                function: "presigned-url",
+                body: ["filename": filename],
+                authToken: authToken
             )
             return response
         }
@@ -99,6 +195,7 @@ enum EdgeFunctionError: LocalizedError {
     case invalidURL
     case httpError(Int)
     case decodingError(String)
+    case serverError(String)
 
     var errorDescription: String? {
         switch self {
@@ -108,43 +205,136 @@ enum EdgeFunctionError: LocalizedError {
             return "Edge Function returned HTTP \(code)"
         case .decodingError(let detail):
             return "Failed to decode Edge Function response: \(detail)"
+        case .serverError(let message):
+            return message
         }
     }
 }
 
 struct CreateCheckoutResponse: Codable, Sendable {
-    let sessionId: String?
-    let url: String?
+    let id: String
+    let url: String
+    let amountTotal: Double
+    let currency: String
+    let platformFee: Double
+    let agencyCommission: Double
+    let commissionRate: Double
+    let holdId: String?
+    let pointsRedeemed: Int?
 
     enum CodingKeys: String, CodingKey {
-        case sessionId = "session_id"
+        case id
         case url
+        case amountTotal = "amount_total"
+        case currency
+        case platformFee = "platform_fee"
+        case agencyCommission = "agency_commission"
+        case commissionRate = "commission_rate"
+        case holdId = "hold_id"
+        case pointsRedeemed = "points_redeemed"
     }
 }
 
 struct ItineraryResponse: Codable, Sendable {
-    let itinerary: [ItineraryDay]
-    let summary: String?
+    let title: String
+    let totalDays: Int
+    let description: String?
+    let days: [ItineraryDay]
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case totalDays = "totalDays"
+        case description
+        case days
+    }
 
     struct ItineraryDay: Codable, Identifiable, Sendable {
-        let day: Int
+        let dayNumber: Int
         let title: String
-        let description: String
-        let activities: [String]?
-        let meals: [String]?
+        let activities: [ItineraryActivity]
 
-        var id: Int { day }
+        enum CodingKeys: String, CodingKey {
+            case dayNumber = "dayNumber"
+            case title
+            case activities
+        }
+
+        var id: Int { dayNumber }
+    }
+
+    struct ItineraryActivity: Codable, Identifiable, Sendable {
+        let time: String
+        let description: String
+        let location: String?
+
+        var id: String { "\(time)-\(description)" }
     }
 }
 
-struct GeminiSearchResponse: Codable, Sendable {
-    let results: [String]?
-    let summary: String?
-    let suggestions: [String]?
+struct CreateLeadResponse: Codable, Sendable {
+    let leadId: String
+    let conversationId: String
+    let assignedTo: String
+
+    enum CodingKeys: String, CodingKey {
+        case leadId = "lead_id"
+        case conversationId = "conversation_id"
+        case assignedTo = "assigned_to"
+    }
 }
 
-struct LeadQualificationResponse: Codable, Sendable {
-    let score: Int?
-    let summary: String?
-    let qualified: Bool?
+struct QualifyLeadResponse: Codable, Sendable {
+    let reply: String
+    let extractedFields: [String: String]?
+    let shouldTransferToHuman: Bool
+    let qualificationCompleted: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case reply
+        case extractedFields = "extracted_fields"
+        case shouldTransferToHuman = "should_transfer_to_human"
+        case qualificationCompleted = "qualification_completed"
+    }
+}
+
+struct ChatPaymentResponse: Codable, Sendable {
+    let url: String
+    let stripeSessionId: String
+    let amount: Double
+    let currency: String
+    let commissionApplied: Double
+    let commissionRate: Double
+
+    enum CodingKeys: String, CodingKey {
+        case url
+        case stripeSessionId = "stripe_session_id"
+        case amount
+        case currency
+        case commissionApplied = "commission_applied"
+        case commissionRate = "commission_rate"
+    }
+}
+
+struct SubscriptionResponse: Codable, Sendable {
+    let url: String?
+    let plan: String?
+    let billingCycle: String?
+    let previousPlan: String?
+
+    enum CodingKeys: String, CodingKey {
+        case url
+        case plan
+        case billingCycle = "billing_cycle"
+        case previousPlan = "previous_plan"
+    }
+}
+
+struct PresignedUrlResponse: Codable, Sendable {
+    let signedUrl: String
+    let path: String
+
+    enum CodingKeys: String, CodingKey {
+        case signedUrl = "signedUrl"
+        case path
+    }
 }
