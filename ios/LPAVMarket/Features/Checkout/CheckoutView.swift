@@ -10,17 +10,11 @@ struct CheckoutView: View {
     @State private var travelerEmail = ""
     @State private var specialRequests = ""
     @State private var guestCount = 1
-    @State private var usePoints = false
-    @State private var pointsToUse: Double = 0
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
                 travelerInfoSection
-
-                if let wallet = vm.wallet, wallet.pointsBalance > 0 {
-                    pointsSection
-                }
 
                 orderSummary
                 paymentSection
@@ -102,54 +96,6 @@ struct CheckoutView: View {
         }
     }
 
-    private var pointsSection: some View {
-        LPAVCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Toggle(isOn: $usePoints) {
-                    HStack {
-                        Image(systemName: "star.fill")
-                            .foregroundColor(.primaryGreen)
-                        Text("Redeem Points")
-                            .fontWeight(.medium)
-                            .foregroundColor(.lpavText)
-                    }
-                }
-                .tint(.primaryGreen)
-
-                if usePoints, let wallet = vm.wallet {
-                    VStack(spacing: 8) {
-                        HStack {
-                            Text("0 pts")
-                                .font(.caption)
-                                .foregroundColor(.lpavSecondaryText)
-                            Spacer()
-                            Text("\(vm.maxRedeemablePoints) pts max")
-                                .font(.caption)
-                                .foregroundColor(.lpavSecondaryText)
-                        }
-
-                        Slider(value: $pointsToUse, in: 0...Double(vm.maxRedeemablePoints), step: 100)
-                            .tint(.primaryGreen)
-
-                        HStack {
-                            Text("You will redeem:")
-                                .font(.caption)
-                                .foregroundColor(.lpavSecondaryText)
-                            Spacer()
-                            Text("\(Int(pointsToUse)) pts = \(Double(Int(pointsToUse)) * 0.01, format: .currency(code: vm.currency))")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.primaryGreen)
-                        }
-                    }
-                    .onChange(of: pointsToUse) { _, newValue in
-                        vm.applyPoints(Int(newValue))
-                    }
-                }
-            }
-        }
-    }
-
     private var orderSummary: some View {
         LPAVCard {
             VStack(spacing: 10) {
@@ -162,15 +108,6 @@ struct CheckoutView: View {
                     Text("Platform Fee (5%)")
                     Spacer()
                     Text(vm.platformFee.formattedCurrency(vm.currency))
-                }
-                if vm.pointsDiscount > 0 {
-                    HStack {
-                        Text("Points Discount")
-                            .foregroundColor(.primaryGreen)
-                        Spacer()
-                        Text("-\(vm.pointsDiscount.formattedCurrency(vm.currency))")
-                            .foregroundColor(.primaryGreen)
-                    }
                 }
                 Divider()
                 HStack {

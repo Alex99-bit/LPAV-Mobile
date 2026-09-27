@@ -14,7 +14,6 @@ data class TransactionOrder(
     val paymentStatus: String = "pending",
     val fulfillmentStatus: String = "pending",
     val stripeSessionId: String? = null,
-    val pointsUsed: Int = 0,
     val items: List<OrderItem> = emptyList(),
     val createdAt: String? = null,
     val updatedAt: String? = null,

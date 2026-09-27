@@ -336,46 +336,6 @@ extension APIRouter {
         }
     }
 
-    enum Wallet {
-        static func fetchWallet(userId: String) async throws -> UserWallet {
-            let response: [UserWallet] = try await supabase.database
-                .from("user_wallets")
-                .select()
-                .eq("user_id", value: userId)
-                .execute()
-                .value
-            guard let wallet = response.first else {
-                throw SupabaseError.decodingFailed("Wallet not found")
-            }
-            return wallet
-        }
-
-        static func fetchPointsHistory(userId: String) async throws -> [WalletTransaction] {
-            let response: [WalletTransaction] = try await supabase.database
-                .from("wallet_transactions")
-                .select()
-                .eq("user_id", value: userId)
-                .order("created_at", ascending: false)
-                .execute()
-                .value
-            return response
-        }
-
-        static func redeemPoints(userId: String, points: Int) async throws -> UserWallet {
-            let response: [UserWallet] = try await supabase.database
-                .rpc("redeem_points", params: [
-                    "p_user_id": userId,
-                    "p_points": points
-                ])
-                .execute()
-                .value
-            guard let wallet = response.first else {
-                throw SupabaseError.decodingFailed("Failed to redeem points")
-            }
-            return wallet
-        }
-    }
-
     enum Notifications {
         static func fetchAll(userId: String) async throws -> [AppNotification] {
             let response: [AppNotification] = try await supabase.database
@@ -451,24 +411,6 @@ final class ChatConversation: Codable, Identifiable, Sendable {
     }
 
     var id: String { conversationId }
-}
-
-final class PointsTransaction: Codable, Identifiable, Sendable {
-    let transactionId: String
-    let userId: String
-    let points: Int
-    let reason: String
-    let createdAt: String
-
-    enum CodingKeys: String, CodingKey {
-        case transactionId = "transaction_id"
-        case userId = "user_id"
-        case points
-        case reason
-        case createdAt = "created_at"
-    }
-
-    var id: String { transactionId }
 }
 
 @Observable

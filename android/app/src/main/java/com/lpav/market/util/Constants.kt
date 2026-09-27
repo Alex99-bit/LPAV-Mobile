@@ -6,8 +6,6 @@ object Constants {
     const val TABLE_ORDERS = "transaction_orders"
     const val TABLE_CART = "cart_items"
     const val TABLE_CHAT_MESSAGES = "chat_messages"
-    const val TABLE_WALLETS = "user_wallets"
-    const val TABLE_WALLET_TRANSACTIONS = "wallet_transactions"
     const val TABLE_NOTIFICATIONS = "notifications"
     const val TABLE_INSTALLMENTS = "installment_schedules"
     const val TABLE_REVIEWS = "package_reviews"
@@ -25,8 +23,6 @@ object Constants {
 
     const val IVA_RATE = 0.16
     const val DEPOSIT_RATIO = 0.30
-    const val POINTS_PER_PESO = 0.01
-    const val MAX_POINTS_DISCOUNT_RATIO = 0.20
 
     const val STRIPE_PUBLISHABLE_KEY = ""
 

@@ -37,8 +37,6 @@ sealed class Screen(
     data object Onboarding : Screen("onboarding", "Bienvenido")
     data object Checkout : Screen("checkout", "Pagar")
     data object Orders : Screen("orders", "Pedidos")
-    data object PointsWallet : Screen("wallet", "Billetera")
-
     data object AgencyDashboard : Screen("agency/dashboard", "Dashboard")
     data object AgencyFlyers : Screen("agency/flyers", "Flyers")
     data object AgencyCRM : Screen("agency/crm", "CRM")

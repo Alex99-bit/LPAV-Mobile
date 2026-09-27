@@ -24,7 +24,6 @@ import com.lpav.market.ui.checkout.CheckoutScreen
 import com.lpav.market.ui.orders.OrdersScreen
 import com.lpav.market.ui.packagedetail.PackageDetailScreen
 import com.lpav.market.ui.notifications.NotificationsScreen
-import com.lpav.market.ui.wallet.WalletScreen
 import com.lpav.market.ui.profile.AgencyProfileScreen
 
 @Composable
@@ -139,12 +138,6 @@ fun NavGraph() {
                 OrdersScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onPackageClick = { packageId -> navController.navigate("package/$packageId") }
-                )
-            }
-
-            composable(Screen.PointsWallet.route) {
-                WalletScreen(
-                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 

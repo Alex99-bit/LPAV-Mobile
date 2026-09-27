@@ -63,19 +63,6 @@ final class BackendIntegrationTests: XCTestCase {
                       "transactions_orders table should exist. Got status \(statusCode)")
     }
 
-    func testUserWalletsTableExists() async throws {
-        let url = URL(string: "\(Self.supabaseURL)/rest/v1/user_wallets?select=user_id&limit=1")!
-        var request = URLRequest(url: url)
-        request.setValue(Self.anonKey, forHTTPHeaderField: "apikey")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        let httpResponse = response as? HTTPURLResponse
-        let statusCode = httpResponse?.statusCode ?? -1
-
-        XCTAssertTrue([200, 401, 403, 406].contains(statusCode),
-                      "user_wallets table should exist. Got status \(statusCode)")
-    }
-
     func testChatMessagesTableExists() async throws {
         let url = URL(string: "\(Self.supabaseURL)/rest/v1/chat_messages?select=message_id&limit=1")!
         var request = URLRequest(url: url)

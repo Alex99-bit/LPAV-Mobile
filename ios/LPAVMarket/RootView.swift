@@ -88,7 +88,6 @@ struct MainTabView: View {
     @Environment(AuthManager.self) private var authManager
     @State private var marketplaceVM = HomeViewModel()
     @State private var checkoutVM = CheckoutViewModel()
-    @State private var walletVM = WalletViewModel()
     @State private var chatVM = ChatViewModel()
     @State private var selectedTab = 0
 
@@ -130,15 +129,6 @@ struct MainTabView: View {
                 Label("Chat", systemImage: "bubble.left.and.bubble.right")
             }
             .tag(3)
-
-            NavigationStack {
-                WalletView()
-                    .environment(walletVM)
-            }
-            .tabItem {
-                Label("Wallet", systemImage: "wallet.pass")
-            }
-            .tag(4)
         }
         .tint(.primaryGreen)
         .task {
@@ -146,80 +136,6 @@ struct MainTabView: View {
             await marketplaceVM.loadFeatured()
             await marketplaceVM.loadWishlist()
             await checkoutVM.loadCartPackages()
-        }
-    }
-}
-
-struct WalletView: View {
-    @Environment(WalletViewModel.self) private var walletVM
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                PointsBalanceBadge(
-                    balance: walletVM.pointsBalance,
-                    tier: walletVM.tier
-                )
-
-                LPAVCard {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Points Value")
-                            .font(.subheadline)
-                            .foregroundColor(.lpavSecondaryText)
-                        Text(walletVM.pointsValue, format: .currency(code: "MXN"))
-                            .font(.title)
-                            .fontWeight(.bold)
-                            .foregroundColor(.lpavText)
-                    }
-                }
-
-                LPAVCard {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Recent Transactions")
-                            .font(.headline)
-                            .foregroundColor(.lpavText)
-
-                        if walletVM.transactions.isEmpty {
-                            LPAVEmptyState(
-                                icon: "tray",
-                                title: "No Transactions",
-                                message: "Your points transaction history will appear here"
-                            )
-                        } else {
-                            ForEach(walletVM.transactions) { transaction in
-                                HStack {
-                                    VStack(alignment: .leading) {
-                                        Text(transaction.reason.capitalized)
-                                            .font(.subheadline)
-                                            .foregroundColor(.lpavText)
-                                        Text(transaction.createdAt.toDateFromISO()?.timeAgo ?? "")
-                                            .font(.caption)
-                                            .foregroundColor(.lpavSecondaryText)
-                                    }
-                                    Spacer()
-                                    Text("\(transaction.points > 0 ? "+" : "")\(transaction.points)")
-                                        .font(.headline)
-                                        .foregroundColor(transaction.points > 0 ? .primaryGreen : .red)
-                                }
-                                .padding(.vertical, 4)
-
-                                if transaction.id != walletVM.transactions.last?.id {
-                                    Divider()
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            .padding()
-        }
-        .background(Color.lpavBackground)
-        .navigationTitle("Wallet")
-        .refreshable {
-            await walletVM.loadWallet()
-        }
-        .task {
-            await walletVM.loadWallet()
         }
     }
 }

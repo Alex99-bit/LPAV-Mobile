@@ -96,14 +96,6 @@ extension Double {
     }
 }
 
-extension Int {
-    func formattedPoints() -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        return formatter.string(from: NSNumber(value: self)) ?? "\(self)"
-    }
-}
-
 extension Optional where Wrapped == String {
     var orEmpty: String { self ?? "" }
 }

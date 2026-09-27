@@ -66,15 +66,11 @@ enum EdgeFunction {
         static func createCheckoutSession(
             packageId: String,
             depositPercent: Double? = nil,
-            pointsToRedeem: Int? = nil,
             authToken: String? = nil
         ) async throws -> CreateCheckoutResponse {
             var body: [String: Any] = ["package_id": packageId]
             if let depositPercent {
                 body["deposit_percent"] = depositPercent
-            }
-            if let pointsToRedeem {
-                body["points_to_redeem"] = pointsToRedeem
             }
             let response: CreateCheckoutResponse = try await EdgeFunction.invokeDecodable(
                 function: "create-checkout",
@@ -220,7 +216,6 @@ struct CreateCheckoutResponse: Codable, Sendable {
     let agencyCommission: Double
     let commissionRate: Double
     let holdId: String?
-    let pointsRedeemed: Int?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -231,7 +226,6 @@ struct CreateCheckoutResponse: Codable, Sendable {
         case agencyCommission = "agency_commission"
         case commissionRate = "commission_rate"
         case holdId = "hold_id"
-        case pointsRedeemed = "points_redeemed"
     }
 }
 

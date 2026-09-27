@@ -11,8 +11,6 @@ struct TransactionOrder: Codable, Identifiable, Sendable {
     let platformCommissionFee: Double?
     let paymentStatus: String
     let stripeSessionId: String?
-    let pointsRedeemed: Int?
-    let discountApplied: Double?
     let travelerName: String?
     let travelerEmail: String?
     let travelDate: String?
@@ -32,8 +30,6 @@ struct TransactionOrder: Codable, Identifiable, Sendable {
         case platformCommissionFee = "platform_commission_fee"
         case paymentStatus = "payment_status"
         case stripeSessionId = "stripe_session_id"
-        case pointsRedeemed = "points_redeemed"
-        case discountApplied = "discount_applied"
         case travelerName = "traveler_name"
         case travelerEmail = "traveler_email"
         case travelDate = "travel_date"
@@ -78,8 +74,6 @@ struct TransactionOrder: Codable, Identifiable, Sendable {
         platformCommissionFee: Double? = nil,
         paymentStatus: String = "pending",
         stripeSessionId: String? = nil,
-        pointsRedeemed: Int? = nil,
-        discountApplied: Double? = nil,
         travelerName: String? = nil,
         travelerEmail: String? = nil,
         travelDate: String? = nil,
@@ -98,8 +92,6 @@ struct TransactionOrder: Codable, Identifiable, Sendable {
         self.platformCommissionFee = platformCommissionFee
         self.paymentStatus = paymentStatus
         self.stripeSessionId = stripeSessionId
-        self.pointsRedeemed = pointsRedeemed
-        self.discountApplied = discountApplied
         self.travelerName = travelerName
         self.travelerEmail = travelerEmail
         self.travelDate = travelDate

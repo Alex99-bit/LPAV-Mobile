@@ -83,21 +83,6 @@ class BackendIntegrationTest {
     }
 
     @Test
-    fun testUserWalletsTableExists() = runBlocking {
-        val request = Request.Builder()
-            .url("$SUPABASE_URL/rest/v1/user_wallets?select=user_id&limit=1")
-            .addHeader("apikey", ANON_KEY)
-            .build()
-
-        val response = client.newCall(request).execute()
-        assertTrue(
-            "user_wallets table should exist. Got status ${response.code}",
-            response.code in listOf(200, 401, 403, 406)
-        )
-        response.close()
-    }
-
-    @Test
     fun testChatMessagesTableExists() = runBlocking {
         val request = Request.Builder()
             .url("$SUPABASE_URL/rest/v1/chat_messages?select=message_id&limit=1")

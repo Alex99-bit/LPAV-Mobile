@@ -57,51 +57,6 @@ When an agency meets conversion thresholds, lower rates apply:
 
 ---
 
-## Loyalty Points System
-
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `POINTS_PER_100_MXN` | `1` | Points earned per 100 MXN spent |
-| `POINT_VALUE_MXN` | `1` | Each point is worth 1 MXN when redeemed |
-| `MIN_REDEEM_POINTS` | `200` | Minimum points required to redeem |
-| `MAX_POINTS_PERCENT_PER_PURCHASE` | `0.20` | Max 20% of purchase total can be paid with points |
-| `MAX_WALLET_BALANCE` | `15000` | Maximum points that can be held in wallet |
-| `WELCOME_BONUS_POINTS` | `5` | Points credited on account creation |
-
-### Points Earning Rules
-
-- Points are earned on the `package_subtotal + package_iva` amount (gross before platform fee)
-- Points are calculated as: `floor((package_subtotal + package_iva) / 100) * POINTS_PER_100_MXN`
-- Points are credited when `payment_status` changes to `paid`
-- Points are NOT earned on deposit-only payments; only on full payment
-
-### Points Redemption Rules
-
-- Minimum redemption: `MIN_REDEEM_POINTS` (200 points)
-- Maximum redemption per purchase: `MAX_POINTS_PERCENT_PER_PURCHASE` (20%) of total amount
-- Points are deducted from wallet at checkout creation
-- If checkout fails or is abandoned, points are reversed
-- Points have no expiration date
-
-### Wallet Balance Rules
-
-- Balance cannot exceed `MAX_WALLET_BALANCE` (15,000 points)
-- Earning beyond the cap is silently capped
-- Welcome bonus is exempt from the cap for the initial credit
-
-### Points Transaction Types
-
-| Type | Description | Points Effect |
-|------|-------------|---------------|
-| `earn` | Purchase completion | Positive |
-| `redeem` | Points applied at checkout | Negative |
-| `reversal` | Refund or failed checkout | Positive (restores) |
-| `bonus` | Promotional or welcome | Positive |
-| `referral` | Referral program reward | Positive |
-| `review` | Review submission reward | Positive |
-
----
-
 ## Content Moderation
 
 | Constant | Value | Description |
@@ -177,25 +132,27 @@ Valid values for `TravelPackage.departure_city`:
 
 ## Subscription Plans
 
-| Plan | Price (Monthly) | Price (Annual) | Features |
-|------|-----------------|----------------|----------|
-| Basico | $499 MXN | $4,990 MXN | Basic listing, manual lead management |
-| Intermedio | $999 MXN | $9,990 MXN | AI qualification, chat, analytics |
-| Premium | $1,999 MXN | $19,990 MXN | Priority placement, advanced AI, dedicated support |
-| Fundador | Custom | Custom | White-label, API access, custom integrations |
+> **Nota:** Los precios y límites de planes son definidos por el Dashboard (LPAV-Marketplace-Dashboard) como sistema de registro. Los valores canónicos son:
+
+| Plan | Price (Monthly) | Commission | Features |
+|------|-----------------|------------|----------|
+| Basico | $0 MXN | 20% (fixed) | 50 flyers, 1 admin, no custom roles |
+| Intermedio | $1,799 MXN | 18% (pref. 17%) | 50 flyers, 1 custom role, 3-5 collaborators |
+| Premium | $2,999 MXN | 15% (pref. 12%) | 50 flyers, 3 custom roles, unlimited collaborators |
+| Fundador | $0 MXN | 7.5% (fixed) | 50 flyers, 3 custom roles, unlimited (10 seats only) |
 
 ### Plan Feature Matrix
 
 | Feature | Basico | Intermedio | Premium | Fundador |
 |---------|--------|------------|---------|----------|
-| Package listings | 20 | 100 | Unlimited | Unlimited |
+| Active flyers | 50 | 50 | 50 | 50 |
+| Custom roles | 0 | 1 | 3 | 3 |
+| Team members | 1 admin | 3-5 | Unlimited | Unlimited |
 | AI lead qualification | No | Yes | Yes | Yes |
-| Chat with customers | No | Yes | Yes | Yes |
-| Analytics dashboard | Basic | Advanced | Advanced | Custom |
-| Priority search ranking | No | No | Yes | Yes |
-| Dedicated support | No | No | Yes | Yes |
-| White-label | No | No | No | Yes |
-| API access | No | No | No | Yes |
+| Chat with customers | Yes | Yes | Yes | Yes |
+| Analytics dashboard | Basic | Standard | Advanced | Advanced |
+| Preferential commission | No | >= 5% conversion | >= 8% conversion | No |
+| Dedicated support | No | No | 24/7 | 24/7 |
 
 ---
 
@@ -282,4 +239,34 @@ draft → pending_review → published → archived
 - One review per order per user
 - Rating must be between 1 and 5
 - Reviews go through moderation before appearing publicly
-- User earns bonus points for approved reviews
+
+---
+
+## Loyalty Points Status (TEMPORARILY DISABLED)
+
+> **Current status (September 2026):** The loyalty points system (Avimo Puntos) is **temporarily disabled** across all platforms (web dashboard, iOS app, and Android app).
+
+### What is disabled:
+
+- **No point earning:** Purchases do not generate loyalty points.
+- **No point redemption:** Checkout does not accept or apply points as payment.
+- **No wallet UI:** Balance display, transaction history, and redemption controls are removed from all clients.
+- **No backend processing:** Edge Functions (`create-checkout`, `stripe-webhook`, `review-package`) do not credit, debit, or reverse points.
+
+### What is preserved:
+
+- Database tables `user_wallets` and `wallet_transactions` remain in Supabase with historical data intact.
+- Columns `points_earned` and `points_redeemed` in `transactions_orders` remain defined but receive no writes.
+- RPC functions `credit_points`, `debit_points`, `get_or_create_wallet` remain available but are not invoked.
+- Historical balances are preserved and will be valid when the system is reactivated.
+
+### Reactivation plan:
+
+When the loyalty program is reactivated, it will follow a phased approach:
+1. Define a versioned loyalty policy (`loyalty_policy_version = 1`).
+2. Decide treatment of historical balances (remain valid, expire, or require acceptance).
+3. No retroactive points for purchases made during the dormant period.
+4. Progressive activation: read-only audit → earning only → redemption → bonuses/promotions.
+5. Server-side feature flag (`LOYALTY_POINTS_ENABLED`) gates all point operations.
+
+See the master documentation (DOC MAESTRO.md, Section 6.4) for the full reactivation specification.

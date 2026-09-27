@@ -2,6 +2,8 @@
 
 Mobile marketplace for travel packages with integrated CRM, chat, and payments. Built for travel agencies to list, sell, and manage travel experiences.
 
+> **Current status (September 2026):** The loyalty points/wallet system is temporarily disabled. Wallet UI, balance display, point redemption, and point-related checkout logic have been removed from both iOS and Android apps. Database tables are preserved for future reactivation.
+
 ---
 
 ## Architecture
@@ -149,7 +151,6 @@ LPAV-Mobile/
 │   │   │   ├── Checkout/         # Payment flow, Stripe integration
 │   │   │   ├── Orders/           # Order history, installment tracking
 │   │   │   ├── Chat/             # Real-time messaging
-│   │   │   ├── Wallet/           # Points balance, transaction history
 │   │   │   ├── Notifications/    # In-app notifications
 │   │   │   ├── Agency/           # Agency dashboard, CRM, analytics
 │   │   │   └── Profile/          # User profile, settings
@@ -195,7 +196,7 @@ LPAV-Mobile/
 
 - **[API Contracts](docs/API_CONTRACTS.md)** — All Edge Function HTTP contracts
 - **[Database Models](docs/DATABASE_MODELS.md)** — Swift struct representations of all tables
-- **[Business Rules](docs/BUSINESS_RULES.md)** — Constants, commission rates, points system, lifecycle rules
+- **[Business Rules](docs/BUSINESS_RULES.md)** — Constants, commission rates, payment rules, lifecycle rules
 - **[Supabase Config](docs/SUPABASE_CONFIG.md)** — Storage buckets, realtime channels, auth setup
 
 ---

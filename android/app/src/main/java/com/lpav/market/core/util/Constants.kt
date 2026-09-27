@@ -22,7 +22,6 @@ object Constants {
     const val PROFILES_TABLE = "profiles"
     const val CHAT_MESSAGES_TABLE = "chat_messages"
     const val CONVERSATIONS_TABLE = "conversations"
-    const val WALLETS_TABLE = "wallets"
     const val REVIEWS_TABLE = "reviews"
     const val NOTIFICATIONS_TABLE = "notifications"
     const val TENANTS_TABLE = "tenants"

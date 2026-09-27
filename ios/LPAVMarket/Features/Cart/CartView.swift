@@ -45,7 +45,6 @@ struct CartView: View {
         .navigationTitle("Cart")
         .task {
             await vm.loadCartPackages()
-            await vm.loadWallet()
         }
     }
 
@@ -65,15 +64,6 @@ struct CartView: View {
                     Spacer()
                     Text(vm.platformFee.formattedCurrency(vm.currency))
                         .foregroundColor(.lpavText)
-                }
-                if vm.pointsDiscount > 0 {
-                    HStack {
-                        Text("Points Discount")
-                            .foregroundColor(.primaryGreen)
-                        Spacer()
-                        Text("-\(vm.pointsDiscount.formattedCurrency(vm.currency))")
-                            .foregroundColor(.primaryGreen)
-                    }
                 }
                 Divider()
                 HStack {

@@ -8,9 +8,6 @@ final class CheckoutViewModel {
     var isProcessingPayment = false
     var errorMessage: String?
     var stripeURL: URL?
-    var appliedPoints = 0
-    var pointsDiscount: Double = 0
-    var wallet: UserWallet?
 
     var packageIds: [String] {
         CartManager.shared.packageIds
@@ -33,15 +30,6 @@ final class CheckoutViewModel {
         cartPackages = loaded
     }
 
-    func loadWallet() async {
-        guard let userId = AuthManager.shared.currentUser?.profile.id else { return }
-        do {
-            wallet = try await APIRouter.Wallet.fetchWallet(userId: userId)
-        } catch {
-            print("Failed to load wallet: \(error)")
-        }
-    }
-
     var subtotal: Double {
         cartPackages.reduce(0) { $0 + $1.price }
     }
@@ -51,29 +39,11 @@ final class CheckoutViewModel {
     }
 
     var total: Double {
-        max(0, subtotal + platformFee - pointsDiscount)
+        max(0, subtotal + platformFee)
     }
 
     var currency: String {
         cartPackages.first?.currency ?? "MXN"
-    }
-
-    func applyPoints(_ points: Int) {
-        guard let wallet, points <= wallet.pointsBalance else { return }
-        appliedPoints = points
-        pointsDiscount = Double(points) * 0.01
-    }
-
-    func clearPoints() {
-        appliedPoints = 0
-        pointsDiscount = 0
-    }
-
-    var maxRedeemablePoints: Int {
-        guard let wallet else { return 0 }
-        let maxDiscount = subtotal * 0.3
-        let maxPoints = Int(maxDiscount / 0.01)
-        return min(wallet.pointsBalance, maxPoints)
     }
 
     func createCheckout() async {
@@ -87,13 +57,10 @@ final class CheckoutViewModel {
 
         do {
             let authToken = try? await supabase.auth.session.accessToken
-            let depositPercent = appliedPoints > 0 ? nil : 0.2
-            let pointsToRedeem = appliedPoints > 0 ? appliedPoints : nil
 
             let response = try await EdgeFunction.Functions.createCheckoutSession(
                 packageId: firstPackageId,
-                depositPercent: depositPercent,
-                pointsToRedeem: pointsToRedeem,
+                depositPercent: 0.2,
                 authToken: authToken
             )
 
@@ -115,9 +82,7 @@ final class CheckoutViewModel {
         let order = TransactionOrder(
             userId: userId,
             totalAmount: total,
-            currency: currency,
-            pointsRedeemed: appliedPoints > 0 ? appliedPoints : nil,
-            discountApplied: pointsDiscount > 0 ? pointsDiscount : nil
+            currency: currency
         )
         do {
             let created = try await APIRouter.Orders.create(order: order)

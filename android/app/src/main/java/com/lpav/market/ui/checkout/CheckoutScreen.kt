@@ -101,19 +101,6 @@ fun CheckoutScreen(
                                 Text("IVA (16%)")
                                 Text("$${String.format("%.2f", uiState.iva)}")
                             }
-                            if (uiState.pointsDiscount > 0) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("Descuento puntos", color = SecondaryGold)
-                                    Text(
-                                        "-$${String.format("%.2f", uiState.pointsDiscount)}",
-                                        color = SecondaryGold
-                                    )
-                                }
-                            }
                             Spacer(modifier = Modifier.height(8.dp))
                             HorizontalDivider()
                             Spacer(modifier = Modifier.height(8.dp))
@@ -123,48 +110,10 @@ fun CheckoutScreen(
                             ) {
                                 Text("Total", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                                 Text(
-                                    "$${String.format("%.2f", uiState.total - uiState.pointsDiscount)}",
+                                    "$${String.format("%.2f", uiState.total)}",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 18.sp,
                                     color = PrimaryBlue
-                                )
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    Card(shape = RoundedCornerShape(12.dp)) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                "Puntos Disponibles: ${uiState.pointsBalance}",
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Slider(
-                                    value = uiState.pointsToUse.toFloat(),
-                                    onValueChange = { viewModel.updatePointsToUse(it.toInt()) },
-                                    valueRange = 0f..uiState.pointsBalance.toFloat(),
-                                    modifier = Modifier.weight(1f),
-                                    colors = SliderDefaults.colors(
-                                        thumbColor = PrimaryBlue,
-                                        activeTrackColor = PrimaryBlue
-                                    )
-                                )
-                                Text(
-                                    " ${uiState.pointsToUse} pts",
-                                    modifier = Modifier.padding(start = 8.dp)
-                                )
-                            }
-                            if (uiState.pointsDiscount > 0) {
-                                Text(
-                                    "Descuento: -$${String.format("%.2f", uiState.pointsDiscount)}",
-                                    color = SecondaryGold,
-                                    fontSize = 13.sp
                                 )
                             }
                         }
@@ -187,7 +136,7 @@ fun CheckoutScreen(
                                 Column {
                                     Text("Pago completo", fontWeight = FontWeight.Medium)
                                     Text(
-                                        "$${String.format("%.2f", uiState.total - uiState.pointsDiscount)}",
+                                        "$${String.format("%.2f", uiState.total)}",
                                         color = PrimaryBlue,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -324,7 +273,7 @@ fun CheckoutScreen(
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
-                                "Pagar $${String.format("%.2f", if (uiState.payFull) uiState.total - uiState.pointsDiscount else uiState.depositAmount)}",
+                                "Pagar $${String.format("%.2f", if (uiState.payFull) uiState.total else uiState.depositAmount)}",
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 16.sp
                             )

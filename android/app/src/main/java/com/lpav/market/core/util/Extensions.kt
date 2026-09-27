@@ -69,11 +69,6 @@ fun Context.openUrl(url: String) {
     startActivity(intent)
 }
 
-fun Int.formatPoints(): String {
-    val formatter = NumberFormat.getNumberInstance(Locale.US)
-    return formatter.format(this)
-}
-
 sealed class Resource<out T> {
     data object Loading : Resource<Nothing>()
     data class Success<T>(val data: T) : Resource<T>()

@@ -41,7 +41,6 @@ final class CartStorage {
                 coverImageUrl: item.coverImageUrl,
                 region: item.region,
                 priceMxn: item.priceMxn,
-                pointsPrice: item.pointsPrice,
                 quantity: current[index].quantity + 1
             )
         } else {
@@ -67,7 +66,6 @@ final class CartStorage {
                     coverImageUrl: current[index].coverImageUrl,
                     region: current[index].region,
                     priceMxn: current[index].priceMxn,
-                    pointsPrice: current[index].pointsPrice,
                     quantity: quantity
                 )
             }

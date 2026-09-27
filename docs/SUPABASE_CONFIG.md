@@ -2,6 +2,8 @@
 
 Reference for all Supabase project configuration used by LPAV-Mobile.
 
+> **Note (September 2026):** The `wallet_updates` realtime channel and wallet-related RLS policies remain configured in Supabase for future reactivation but are not consumed by any active client code. The `user_wallets` and `wallet_transactions` tables exist in the database but are not read or written by the mobile apps.
+
 ---
 
 ## Environment Variables
@@ -101,18 +103,6 @@ WITH CHECK (
 ## Realtime Channels
 
 Enable Supabase Realtime for live data updates.
-
-### wallet_updates
-
-| Property | Value |
-|----------|-------|
-| Channel | `wallet_updates:{user_id}` |
-| Table | `wallet_transactions` |
-| Event | `INSERT` |
-| Filter | `user_id = eq.{current_user_id}` |
-| Payload | Full `WalletTransaction` row |
-
-**Usage:** Real-time wallet balance updates when points are earned, redeemed, or reversed.
 
 ### chat_messages
 
@@ -279,7 +269,6 @@ All tables have RLS enabled. Policies ensure:
 | Agency members read tenant data | `auth.uid() IN (SELECT user_id FROM profiles WHERE tenant_id = X)` |
 | Public read for published packages | `publication_status = 'published'` |
 | Users read own orders | `auth.uid() = user_id` |
-| Users read own wallet | `auth.uid() = user_id` |
 | Users read own notifications | `auth.uid() = user_id` |
 | Agents read assigned leads | `assigned_to = auth.uid()` |
 

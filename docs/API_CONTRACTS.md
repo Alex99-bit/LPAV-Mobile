@@ -2,6 +2,8 @@
 
 All backend logic runs as Supabase Edge Functions. This document specifies every HTTP contract the mobile client must implement.
 
+> **Note (September 2026):** The `create-checkout` endpoint no longer accepts or returns loyalty point fields (`points_to_redeem`, `points_redeemed`). Mobile clients must not send point-related parameters. The checkout flow calculates commission on the full deposit amount without point deductions.
+
 ## Common Headers
 
 Every authenticated request must include:
@@ -34,8 +36,7 @@ Creates a Stripe Checkout Session for a travel package purchase.
 ```json
 {
   "package_id": "uuid-string",
-  "deposit_percent": 0.25,
-  "points_to_redeem": 500
+  "deposit_percent": 0.25
 }
 ```
 
@@ -43,7 +44,6 @@ Creates a Stripe Checkout Session for a travel package purchase.
 |-------|------|----------|-------------|
 | `package_id` | string (uuid) | Yes | The travel package to purchase |
 | `deposit_percent` | number | No | Fraction of total to pay upfront. Must be >= 0.2. Defaults to MIN_DEPOSIT_PERCENTAGE |
-| `points_to_redeem` | integer | No | Wallet points to apply as discount. Must be >= 200 and <= MAX_POINTS_PERCENT_PER_PURCHASE of total |
 
 ### Success Response — 200
 
@@ -56,8 +56,7 @@ Creates a Stripe Checkout Session for a travel package purchase.
   "platform_fee": 2500.00,
   "agency_commission": 2250.00,
   "commission_rate": 0.18,
-  "hold_id": "hold_uuid_or_null",
-  "points_redeemed": 500
+  "hold_id": "hold_uuid_or_null"
 }
 ```
 
@@ -65,13 +64,12 @@ Creates a Stripe Checkout Session for a travel package purchase.
 |-------|------|-------------|
 | `id` | string | Stripe Checkout Session ID |
 | `url` | string | Redirect URL for the customer to complete payment |
-| `amount_total` | number | Total amount charged to customer (after points deduction) |
+| `amount_total` | number | Total amount charged to customer |
 | `currency` | string | ISO 4217 currency code |
 | `platform_fee` | number | Platform's share of the transaction |
 | `agency_commission` | number | Agency's commission amount |
 | `commission_rate` | number | Applied commission rate (decimal) |
 | `hold_id` | string \| null | Room hold ID if inventory was reserved |
-| `points_redeemed` | integer \| null | Points actually redeemed (may differ from requested) |
 
 ### Error Responses
 
@@ -80,8 +78,6 @@ Creates a Stripe Checkout Session for a travel package purchase.
 | 400 | `INVALID_PACKAGE` | Package does not exist or is not published |
 | 400 | `INSUFFICIENT_ROOMS` | No available rooms for the package |
 | 400 | `INVALID_DEPOSIT` | deposit_percent < MIN_DEPOSIT_PERCENTAGE |
-| 400 | `INVALID_POINTS` | points_to_redeem < MIN_REDEEM_POINTS or exceeds max allowed |
-| 400 | `INSUFFICIENT_WALLET` | User has fewer points than requested |
 | 401 | `UNAUTHORIZED` | Missing or invalid JWT |
 | 429 | `RATE_LIMITED` | Too many checkout attempts |
 

@@ -106,9 +106,6 @@ struct OrderRow: View {
                 }
             }
 
-            if let points = order.pointsRedeemed, points > 0 {
-                LPAVBadge(text: "\(points) pts redeemed", color: .primaryGreen)
-            }
         }
         .padding(.vertical, 8)
     }

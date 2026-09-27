@@ -7,7 +7,6 @@ struct CartItem: Codable, Identifiable, Sendable {
     let coverImageUrl: String?
     let region: String
     let priceMxn: Double
-    let pointsPrice: Int
     let quantity: Int
 
     var totalPrice: Double {

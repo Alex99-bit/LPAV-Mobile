@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lpav.market.core.model.CartItem
 import com.lpav.market.core.model.TransactionOrder
-import com.lpav.market.core.model.UserWallet
 import com.lpav.market.core.network.SupabaseModule
 import com.lpav.market.core.storage.CartStorage
 import com.lpav.market.util.Constants
@@ -24,9 +23,6 @@ data class CheckoutUiState(
     val subtotal: Double = 0.0,
     val iva: Double = 0.0,
     val total: Double = 0.0,
-    val pointsBalance: Int = 0,
-    val pointsToUse: Int = 0,
-    val pointsDiscount: Double = 0.0,
     val depositAmount: Double = 0.0,
     val payFull: Boolean = true,
     val travelDate: String = "",
@@ -67,8 +63,6 @@ class CheckoutViewModel @Inject constructor(
                     depositAmount = total * Constants.DEPOSIT_RATIO,
                     isLoading = false
                 )
-
-                loadWalletBalance()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -78,37 +72,9 @@ class CheckoutViewModel @Inject constructor(
         }
     }
 
-    private suspend fun loadWalletBalance() {
-        try {
-            val userId = SupabaseModule.client.auth.currentUserOrNull()?.id ?: return
-            val wallets = SupabaseModule.client.from("user_wallets")
-                .select { filter { eq("user_id", userId) } }
-                .decodeList<UserWallet>()
-            if (wallets.isNotEmpty()) {
-                val maxDiscount = _uiState.value.total * Constants.MAX_POINTS_DISCOUNT_RATIO
-                val maxPoints = (maxDiscount / Constants.POINTS_PER_PESO).toInt()
-                _uiState.value = _uiState.value.copy(
-                    pointsBalance = minOf(wallets.first().pointsBalance, maxPoints)
-                )
-            }
-        } catch (_: Exception) {}
-    }
-
-    fun updatePointsToUse(points: Int) {
-        val maxPoints = _uiState.value.pointsBalance
-        val clampedPoints = points.coerceIn(0, maxPoints)
-        val discount = clampedPoints * Constants.POINTS_PER_PESO
-        val newTotal = _uiState.value.subtotal + _uiState.value.iva - discount
-        _uiState.value = _uiState.value.copy(
-            pointsToUse = clampedPoints,
-            pointsDiscount = discount,
-            depositAmount = if (_uiState.value.payFull) newTotal else newTotal * Constants.DEPOSIT_RATIO
-        )
-    }
-
     fun togglePayFull() {
         val newPayFull = !_uiState.value.payFull
-        val total = _uiState.value.subtotal + _uiState.value.iva - _uiState.value.pointsDiscount
+        val total = _uiState.value.subtotal + _uiState.value.iva
         _uiState.value = _uiState.value.copy(
             payFull = newPayFull,
             depositAmount = if (newPayFull) total else total * Constants.DEPOSIT_RATIO
@@ -150,7 +116,6 @@ class CheckoutViewModel @Inject constructor(
                     userId = userId,
                     totalAmount = _uiState.value.subtotal + _uiState.value.iva,
                     remainingBalance = _uiState.value.depositAmount,
-                    pointsUsed = _uiState.value.pointsToUse,
                     items = orderItems,
                     paymentStatus = "pending",
                     fulfillmentStatus = "pending"

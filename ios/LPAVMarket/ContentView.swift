@@ -14,10 +14,6 @@ struct ContentView: View {
                 OrdersView()
             }
 
-            Tab("Wallet", systemImage: "creditcard.fill", value: 2) {
-                WalletView()
-            }
-
             Tab("Chat", systemImage: "bubble.left.and.bubble.right.fill", value: 3) {
                 ChatListView()
             }

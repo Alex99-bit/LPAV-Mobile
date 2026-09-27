@@ -2,6 +2,8 @@
 
 All tables are defined in Supabase (PostgreSQL). Below are the Swift struct representations used by the iOS client. Android equivalents should mirror these structures.
 
+> **Note (September 2026):** The `user_wallets` and `wallet_transactions` tables remain in the Supabase database for schema compatibility and future reactivation of the loyalty points system. Mobile clients must NOT read balances, create transactions, or expose wallet UI while the feature is disabled. The columns `points_earned` and `points_redeemed` on `TransactionOrder` are preserved in the schema but receive no active writes.
+
 ---
 
 ## Enums
@@ -60,19 +62,6 @@ enum ChatMessageType: String, Codable {
     case text = "text"
     case paymentRequest = "payment_request"
     case paymentConfirmed = "payment_confirmed"
-}
-```
-
-### WalletTransactionType
-
-```swift
-enum WalletTransactionType: String, Codable {
-    case earn = "earn"
-    case redeem = "redeem"
-    case reversal = "reversal"
-    case bonus = "bonus"
-    case referral = "referral"
-    case review = "review"
 }
 ```
 
@@ -269,8 +258,6 @@ struct TransactionOrder: Codable, Identifiable {
     let platformCommissionFee: Double
     let packageSubtotal: Double
     let packageIva: Double
-    let pointsEarned: Int
-    let pointsRedeemed: Int
     let paymentStatus: PaymentStatus
     let nextPaymentDue: Date?
     let createdAt: Date
@@ -286,8 +273,6 @@ struct TransactionOrder: Codable, Identifiable {
         case platformCommissionFee = "platform_commission_fee"
         case packageSubtotal = "package_subtotal"
         case packageIva = "package_iva"
-        case pointsEarned = "points_earned"
-        case pointsRedeemed = "points_redeemed"
         case paymentStatus = "payment_status"
         case nextPaymentDue = "next_payment_due"
         case createdAt = "created_at"
@@ -348,62 +333,6 @@ struct ChatMessage: Codable, Identifiable {
         case messageText = "message_text"
         case messageType = "message_type"
         case metadata
-        case createdAt = "created_at"
-    }
-}
-```
-
----
-
-### UserWallet
-
-**Table name:** `user_wallets`
-
-```swift
-struct UserWallet: Codable, Identifiable {
-    let id: UUID // wallet_id
-    let userId: UUID
-    let pointsBalance: Int
-    let maxBalanceReached: Int
-    let createdAt: Date
-    let updatedAt: Date
-
-    enum CodingKeys: String, CodingKey {
-        case id = "wallet_id"
-        case userId = "user_id"
-        case pointsBalance = "points_balance"
-        case maxBalanceReached = "max_balance_reached"
-        case createdAt = "created_at"
-        case updatedAt = "updated_at"
-    }
-}
-```
-
----
-
-### WalletTransaction
-
-**Table name:** `wallet_transactions`
-
-```swift
-struct WalletTransaction: Codable, Identifiable {
-    let id: UUID // transaction_id
-    let walletId: UUID
-    let userId: UUID
-    let type: WalletTransactionType
-    let points: Int
-    let descriptionText: String?
-    let referenceOrderId: UUID?
-    let createdAt: Date
-
-    enum CodingKeys: String, CodingKey {
-        case id = "transaction_id"
-        case walletId = "wallet_id"
-        case userId = "user_id"
-        case type
-        case points
-        case descriptionText = "description"
-        case referenceOrderId = "reference_order_id"
         case createdAt = "created_at"
     }
 }
