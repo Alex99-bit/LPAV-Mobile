@@ -1,223 +1,109 @@
-# LPAV-Mobile
+# LPAV Mobile
 
-Mobile marketplace for travel packages with integrated CRM, chat, and payments. Built for travel agencies to list, sell, and manage travel experiences.
+Aplicaciones móviles nativas para el marketplace de LPAV, una plataforma SaaS para agencias de viaje. El proyecto permite a viajeros descubrir paquetes turísticos, comunicarse con agencias y gestionar sus compras desde iOS y Android.
 
-> **Current status (September 2026):** The loyalty points/wallet system is temporarily disabled. Wallet UI, balance display, point redemption, and point-related checkout logic have been removed from both iOS and Android apps. Database tables are preserved for future reactivation.
+Este repositorio se publica exclusivamente como muestra de portafolio y demostración técnica.
 
----
+## Descripción
 
-## Architecture
+LPAV Mobile extiende la experiencia del marketplace y el portal de agencias a dispositivos móviles, con funcionalidades para:
 
-```
-┌─────────────────────────────────────────────────────┐
-│                    Mobile Apps                       │
-│              iOS (Swift)  ·  Android (Kotlin)         │
-├─────────────────────────────────────────────────────┤
-│                   Supabase                           │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │
-│  │   Auth    │  │   DB     │  │  Edge Functions   │  │
-│  │ (JWT+RLS) │  │ (Postgres)│  │  (Deno)          │  │
-│  └──────────┘  └──────────┘  └──────────────────┘  │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │
-│  │ Storage  │  │ Realtime │  │  PostgREST API    │  │
-│  └──────────┘  └──────────┘  └──────────────────┘  │
-├─────────────────────────────────────────────────────┤
-│              External Services                       │
-│         Stripe (Payments)  ·  OpenAI (AI)            │
-└─────────────────────────────────────────────────────┘
-```
+- Explorar paquetes turísticos, itinerarios y perfiles de agencias.
+- Buscar y consultar detalles de experiencias de viaje.
+- Gestionar carrito, checkout, pedidos y pagos.
+- Registrar usuarios e iniciar sesión mediante autenticación segura.
+- Mantener conversaciones en tiempo real entre viajeros y agencias.
+- Recibir notificaciones relacionadas con pedidos y actividad de la cuenta.
+- Consultar y administrar perfiles de usuario y agencia.
+- Gestionar leads y operaciones comerciales desde el entorno móvil.
+- Proteger credenciales locales mediante Keychain y almacenamiento cifrado.
+- Compartir modelos, contratos de API y reglas de negocio con la plataforma principal.
 
----
+## Arquitectura
 
-## Tech Stack
+```text
+Aplicaciones móviles
+├── iOS: Swift + SwiftUI
+└── Android: Kotlin + Jetpack Compose
 
-| Layer | Technology |
-|-------|-----------|
-| iOS | Swift 5.9+, SwiftUI, iOS 17+ |
-| Android | Kotlin, Jetpack Compose, Material 3 |
-| Backend | Supabase (PostgreSQL, Edge Functions, Auth, Storage, Realtime) |
-| Payments | Stripe Checkout, Stripe Billing |
-| AI | OpenAI API (lead qualification) |
-| Architecture | MVVM (iOS), MVVM + Clean Architecture (Android) |
-| DI | Factory pattern (iOS), Hilt (Android) |
-| Networking | Supabase Swift/Kotlin client libraries |
+Backend compartido
+├── Supabase Auth
+├── PostgreSQL y PostgREST
+├── Edge Functions
+├── Storage
+└── Realtime
 
----
-
-## Prerequisites
-
-- **Xcode 15+** (iOS development)
-- **Android Studio Hedgehog+** (Android development)
-- **CocoaPods** or **Swift Package Manager** (iOS dependencies)
-- **Gradle 8.2+** (Android build system)
-- **Supabase CLI** (backend deployment)
-- **Node.js 18+** (Supabase Edge Functions local dev)
-- **Stripe CLI** (local payment testing)
-- **Git**
-
----
-
-## Setup
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/your-org/LPAV-Mobile.git
-cd LPAV-Mobile
+Servicios externos
+├── Stripe para pagos
+└── Servicios de IA para calificación de leads
 ```
 
-### 2. Create a Supabase Project
+Las aplicaciones consumen un backend compartido basado en Supabase y siguen una arquitectura orientada a separación de responsabilidades, autenticación por tokens, aislamiento multi-tenant y comunicación en tiempo real.
 
-1. Go to [supabase.com](https://supabase.com) and create a new project
-2. Note your project URL and anon key from Settings → API
-3. Run the database migrations (see `supabase/migrations/`)
-4. Deploy Edge Functions:
+## Tecnologías
 
-```bash
-supabase functions deploy
-```
+| Plataforma | Tecnologías |
+| --- | --- |
+| iOS | Swift 5.9+, SwiftUI, iOS 17+, Swift Package Manager |
+| Android | Kotlin, Jetpack Compose, Material 3, Android SDK 34 |
+| Arquitectura | MVVM en iOS; MVVM y Clean Architecture en Android |
+| Inyección de dependencias | Factory en iOS; Hilt en Android |
+| Backend | Supabase, PostgreSQL, Auth, Storage, Realtime y Edge Functions |
+| Red | Clientes Supabase para Swift y Kotlin |
+| Pagos | Stripe Payments, Stripe Checkout y Stripe Billing |
+| Pruebas | XCTest, pruebas de integración Android y UI tests |
 
-### 3. Set Up Stripe
+## Módulos Principales
 
-1. Create a [Stripe account](https://stripe.com)
-2. Get your test API keys from the Stripe Dashboard
-3. Set Stripe secrets in Supabase:
+### Marketplace
 
-```bash
-supabase secrets set STRIPE_SECRET_KEY=sk_test_...
-supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...
-```
+Catálogo de paquetes, filtros, tarjetas de flyers, favoritos, perfiles de agencias, detalles de paquetes, itinerarios y reseñas.
 
-4. Create a Stripe webhook pointing to:
-   ```
-   https://your-project.supabase.co/functions/v1/stripe-webhook
-   ```
+### Autenticación Y Perfiles
 
-### 4. iOS Setup
+Registro, inicio de sesión, onboarding, autenticación biométrica, Google Sign-In y gestión de perfiles.
 
-```bash
-cd ios
-pod install
-# or if using SPM, open .xcodeproj directly
-```
+### Carrito Y Pedidos
 
-Create `ios/Config/Debug.xcconfig`:
+Carrito persistente, checkout, estados de pago, historial de pedidos y seguimiento de pagos diferidos.
 
-```
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-```
+### Chat Y Notificaciones
 
-Open `LPAV-Mobile.xcworkspace` in Xcode.
+Mensajería entre viajeros y agencias mediante Supabase Realtime, lista de conversaciones y notificaciones dentro de la aplicación.
 
-### 5. Android Setup
+### Portal De Agencia
 
-Create `android/local.properties`:
+Funciones móviles para consultar el perfil de agencia, gestionar leads y dar seguimiento a la relación con clientes.
 
-```properties
-sdk.dir=/path/to/android/sdk
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-```
+### Seguridad
 
-Sync Gradle and build.
+El proyecto contempla almacenamiento seguro de credenciales, validación de sesiones, separación de responsabilidades, configuración por entorno y pruebas de integración con el backend.
 
----
+## Documentación Técnica
 
-## Environment Variables
+- [Contratos de API](docs/API_CONTRACTS.md)
+- [Modelos de datos](docs/DATABASE_MODELS.md)
+- [Reglas de negocio](docs/BUSINESS_RULES.md)
+- [Configuración de Supabase](docs/SUPABASE_CONFIG.md)
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `SUPABASE_URL` | Supabase project URL | Yes |
-| `SUPABASE_ANON_KEY` | Supabase public anon key | Yes |
-| `SUPABASE_SERVICE_ROLE_KEY` | Admin key (backend only) | No |
-| `STRIPE_SECRET_KEY` | Stripe API secret key | Backend |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook secret | Backend |
-| `OPENAI_API_KEY` | OpenAI API key | Backend |
+## Estado Del Proyecto
 
----
+Proyecto personal en desarrollo, publicado con fines demostrativos y de portafolio. Algunas funcionalidades dependen de servicios privados, credenciales de entorno, configuración de Supabase y cuentas de terceros.
 
-## Folder Structure
+El sistema de puntos de lealtad **Avimo Puntos** se encuentra temporalmente desactivado en las aplicaciones. Las estructuras relacionadas se conservan para una posible reactivación futura.
 
-```
-LPAV-Mobile/
-├── ios/                          # iOS Swift project
-│   ├── LPAV-Mobile/
-│   │   ├── App/                  # App entry point, scene delegate
-│   │   ├── Features/             # Feature modules
-│   │   │   ├── Auth/             # Login, register, onboarding
-│   │   │   ├── Catalog/          # Package browsing, search, filters
-│   │   │   ├── PackageDetail/    # Package detail, itinerary, reviews
-│   │   │   ├── Checkout/         # Payment flow, Stripe integration
-│   │   │   ├── Orders/           # Order history, installment tracking
-│   │   │   ├── Chat/             # Real-time messaging
-│   │   │   ├── Notifications/    # In-app notifications
-│   │   │   ├── Agency/           # Agency dashboard, CRM, analytics
-│   │   │   └── Profile/          # User profile, settings
-│   │   ├── Core/                 # Shared infrastructure
-│   │   │   ├── Network/          # Supabase client, API layer
-│   │   │   ├── Auth/             # Auth manager, token handling
-│   │   │   ├── Storage/          # File upload, presigned URLs
-│   │   │   └── Realtime/         # Realtime subscription manager
-│   │   ├── Models/               # Data models, Codable structs
-│   │   ├── Components/           # Reusable UI components
-│   │   └── Resources/            # Assets, colors, localization
-│   ├── Config/                   # XCConfig files
-│   └── Podfile / Package.swift
-├── android/                      # Android Kotlin project
-│   ├── app/
-│   │   └── src/main/
-│   │       ├── java/             # Kotlin source files
-│   │       ├── res/              # Resources
-│   │       └── AndroidManifest.xml
-│   ├── build.gradle.kts
-│   └── gradle.properties
-├── supabase/                     # Supabase configuration
-│   ├── migrations/               # SQL migrations
-│   └── functions/                # Edge Functions
-│       ├── create-checkout/
-│       ├── create-lead/
-│       ├── generate-itinerary/
-│       ├── ai-qualify-lead/
-│       ├── create-chat-payment/
-│       ├── manage-subscription/
-│       └── presigned-url/
-├── docs/                         # Documentation
-│   ├── API_CONTRACTS.md
-│   ├── DATABASE_MODELS.md
-│   ├── BUSINESS_RULES.md
-│   └── SUPABASE_CONFIG.md
-└── README.md
-```
+## Visualización
 
----
+Este repositorio puede visualizarse públicamente en GitHub únicamente con fines demostrativos. No se autoriza descargar, clonar, copiar, ejecutar, modificar, redistribuir, crear forks ni utilizar el contenido en otros proyectos.
 
-## Documentation
+Para conocer las condiciones completas, consulta el archivo [`LICENSE`](./LICENSE).
 
-- **[API Contracts](docs/API_CONTRACTS.md)** — All Edge Function HTTP contracts
-- **[Database Models](docs/DATABASE_MODELS.md)** — Swift struct representations of all tables
-- **[Business Rules](docs/BUSINESS_RULES.md)** — Constants, commission rates, payment rules, lifecycle rules
-- **[Supabase Config](docs/SUPABASE_CONFIG.md)** — Storage buckets, realtime channels, auth setup
+## Autor
 
----
+**Carlos Alejandro Coronado Obregón**
 
-## Contributing
+Contacto: [alejandro.co.dev@gmail.com](mailto:alejandro.co.dev@gmail.com)
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/my-feature`
-3. Make your changes following the existing code style
-4. Add or update tests as needed
-5. Run linting and type checks before committing
-6. Submit a pull request with a clear description
+## Derechos Reservados
 
-### Code Style
-
-- **iOS:** Follow Swift API Design Guidelines. Use `swiftlint` if configured.
-- **Android:** Follow Kotlin coding conventions. Use `ktlint` if configured.
-- **General:** No secrets in code. Use environment variables for all configuration.
-
----
-
-## License
-
-Proprietary. All rights reserved.
+Copyright (c) 2026 Carlos Alejandro Coronado Obregón. Todos los derechos reservados.
