@@ -83,6 +83,7 @@ google-services.json
 .env
 .env.local
 .env.*.local
+android/local.properties
 *.jks
 *.keystore
 *.p12
